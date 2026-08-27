@@ -732,7 +732,6 @@ function handleSend() {
   var text = msgInput.value.trim();
   if (!text) return;
 
-  // 如果正在问答问卷，不接受文字
   if (quizState) {
     addBotMsg('请先在上面的选项中选择一个答案哦～');
     return;
@@ -741,21 +740,55 @@ function handleSend() {
   addUserMsg(text);
   msgInput.value = '';
 
-  // 如果正在自由描述模式
   if (freeRecommendActive) {
     handleFreeRecommend(text);
     return;
   }
 
-  // 匹配回答
-  var reply = findAnswer(text);
-  if (reply) {
-    addBotMsg(reply);
-  } else {
-    addBotMsg(
-      '抱歉，我暂时还不太了解这个问题 😅\n\n你可以试试：\n• 输入部门名称（如「文宣部」）了解详情\n• 问我报名、面试相关的问题\n• 点击「📋 快速测评」或「💬 自由描述」让我帮你找到适合的岗位！'
-    );
-  }
+  callChatApi(text);
+}
+
+function callChatApi(text) {
+  sendBtn.disabled = true;
+  msgInput.disabled = true;
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      mode: 'qa',
+      messages: [
+        {
+          role: 'user',
+          content: text
+        }
+      ]
+    })
+  })
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error('接口请求失败');
+      }
+
+      return response.json();
+    })
+    .then(function(data) {
+      if (data.ok && data.reply) {
+        addBotMsg(data.reply);
+      } else {
+        addBotMsg('抱歉，我暂时没有获取到回答，请稍后再试。');
+      }
+    })
+    .catch(function() {
+      addBotMsg('网络连接出现问题，请稍后再试。');
+    })
+    .finally(function() {
+      sendBtn.disabled = false;
+      msgInput.disabled = false;
+      msgInput.focus();
+    });
 }
 
 // ==================== 智能匹配 ====================
