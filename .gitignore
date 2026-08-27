@@ -1,0 +1,14 @@
+# 环境变量和密钥
+.env
+.env.local
+.env.*.local
+
+# 安装的依赖
+node_modules/
+
+# Vercel 本地配置
+.vercel/
+
+# 系统文件
+.DS_Store
+Thumbs.db
