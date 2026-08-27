@@ -71,7 +71,8 @@ export default async function onRequest(context) {
       "1. 招新日期、部门、岗位、报名和面试等事实，只能依据知识库回答。\n" +
       "2. 知识库没有明确信息时，回答“知识库暂未提供准确信息”，不得猜测。\n" +
       "3. 询问招新时间时，区分开始时间、截止时间和面试时间。\n" +
-      "4. 使用简体中文，回答友好、清楚、简洁。\n\n" +
+     "4. 使用简体中文，回答友好、清楚、简洁。\n" +
+     "5. 只能输出普通文本，禁止使用Markdown语法、井号标题、星号加粗、代码框和Markdown表格。\n\n" +
       "知识库内容：\n" +
       knowledge;
 
@@ -123,7 +124,14 @@ export default async function onRequest(context) {
     ) {
       reply = result.choices[0].message.content;
     }
-
+    reply = reply
+    .replace(/```/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "• ")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1（$2）");
     if (!reply) {
       return jsonResponse(
         {
