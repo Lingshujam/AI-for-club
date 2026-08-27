@@ -1,0 +1,1150 @@
+      
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎓 学生会招新助手</title>
+<style>
+/* ========== 全局样式 ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #E3F2FD;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 540px;
+  height: 100vh;
+  max-height: 780px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(25, 118, 210, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ========== 顶部标题栏 ========== */
+.header {
+  background: linear-gradient(135deg, #BBDEFB 0%, #90CAF9 100%);
+  padding: 16px 20px;
+  text-align: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid #BBDEFB;
+}
+.header .title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1565C0;
+  letter-spacing: 1px;
+}
+.header .subtitle {
+  font-size: 12px;
+  color: #1E88E5;
+  margin-top: 2px;
+  opacity: 0.75;
+}
+
+/* ========== 聊天区域 ========== */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 8px;
+  background: #F5F9FF;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.chat-area::-webkit-scrollbar { width: 5px; }
+.chat-area::-webkit-scrollbar-thumb { background: #BBDEFB; border-radius: 10px; }
+
+/* ========== 消息气泡 ========== */
+.message {
+  display: flex;
+  gap: 10px;
+  max-width: 90%;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.message.bot { align-self: flex-start; }
+.message.user { align-self: flex-end; flex-direction: row-reverse; }
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.message.bot .avatar { background: #BBDEFB; }
+.message.user .avatar { background: #E3F2FD; }
+
+.bubble {
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.75;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.message.bot .bubble {
+  background: #fff;
+  border: 1px solid #E3F2FD;
+  border-top-left-radius: 4px;
+  color: #263238;
+}
+.message.user .bubble {
+  background: #BBDEFB;
+  border-top-right-radius: 4px;
+  color: #0D47A1;
+}
+
+/* ========== 推荐结果卡片 ========== */
+.recommend-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.rec-card {
+  background: #fff;
+  border: 1.5px solid #90CAF9;
+  border-radius: 14px;
+  padding: 16px;
+}
+.rec-card:first-child {
+  border-color: #1565C0;
+  border-width: 2px;
+  background: #FAFDFF;
+}
+.rec-card .rec-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: #1565C0;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.rec-card .rec-dept {
+  font-size: 12px;
+  color: #1976D2;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.rec-card .rec-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0D47A1;
+  margin-bottom: 12px;
+}
+.rec-card .rec-section {
+  margin-top: 10px;
+}
+.rec-card .rec-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1565C0;
+  margin-bottom: 4px;
+}
+.rec-card .rec-text {
+  font-size: 14px;
+  color: #455A64;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.rec-card .rec-reason {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #BBDEFB;
+  font-size: 13px;
+  color: #1976D2;
+}
+
+/* ========== 快捷标签 ========== */
+.quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.quick-chip {
+  padding: 8px 14px;
+  background: #fff;
+  border: 1px solid #BBDEFB;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #1565C0;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.quick-chip:hover {
+  background: #BBDEFB;
+  border-color: #90CAF9;
+}
+.quick-chip.highlight {
+  background: #1565C0;
+  color: #fff;
+  border-color: #1565C0;
+}
+.quick-chip.highlight:hover {
+  background: #0D47A1;
+}
+
+/* 推荐问卷选项 */
+.quiz-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.quiz-btn {
+  padding: 12px 16px;
+  background: #fff;
+  border: 1.5px solid #E3F2FD;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #263238;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  user-select: none;
+  line-height: 1.5;
+}
+.quiz-btn:hover {
+  border-color: #1565C0;
+  background: #F5F9FF;
+}
+
+/* ========== 次要功能入口：岗位匹配度测试 ========== */
+.feature-bar {
+  padding: 10px 16px 0;
+  background: #fff;
+  flex-shrink: 0;
+}
+.quiz-entry {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #BBDEFB;
+  border-radius: 12px;
+  background: #F5F9FF;
+  color: #1565C0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quiz-entry:hover {
+  background: #E3F2FD;
+  border-color: #90CAF9;
+}
+
+/* ========== 输入区域 ========== */
+.input-area {
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #E3F2FD;
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.input-area input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1.5px solid #E3F2FD;
+  border-radius: 24px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+.input-area input:focus {
+  border-color: #90CAF9;
+}
+.input-area input::placeholder {
+  color: #B0BEC5;
+}
+.send-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: #1565C0;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.send-btn:hover { background: #0D47A1; }
+.send-btn:active { transform: scale(0.95); }
+.send-btn:disabled {
+  background: #B0BEC5;
+  cursor: not-allowed;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 540px) {
+  .app-container {
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header">
+    <div class="title">🎓 学生会招新助手</div>
+    <div class="subtitle">随时问我任何关于学生会的问题吧~</div>
+  </div>
+
+  <div class="chat-area" id="chatArea"></div>
+
+  <div class="feature-bar">
+    <button class="quiz-entry" id="quizEntry">✨ 不知道适合什么岗位？做个匹配度测试</button>
+  </div>
+
+  <div class="input-area">
+    <input type="text" id="msgInput" placeholder="请输入关于学生会的问题..." autofocus>
+    <button class="send-btn" id="sendBtn" title="发送">➤</button>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<!-- 📚  知识库 —— 修改下面 KNOWLEDGE 对象来更新助手的知识！                 -->
+<!-- ====================================================================== -->
+<!--                                                                         -->
+<!-- 字段说明：                                                              -->
+<!--   departments[].intro       → 部门一句话介绍                           -->
+<!--   departments[].activities  → 部门负责的主要活动                       -->
+<!--   departments[].positions[] → 岗位列表                                 -->
+<!--     positions[].name        → 岗位名称                                 -->
+<!--     positions[].description → 一句话简介                               -->
+<!--     positions[].workContent → 具体工作内容（日常做什么）               -->
+<!--     positions[].workHours   → 预计工作时间                             -->
+<!--     positions[].tags        → 技能标签（关键词匹配用）                 -->
+<!--     positions[].fit         → 适合怎样的性格（关键词匹配用）           -->
+<!--                                                                         -->
+<!--   faqs[].keywords[] → 触发关键词（用户问题包含这些词就匹配）           -->
+<!--   faqs[].question   → 对应的常见问题                                   -->
+<!--   faqs[].answer      → 预设回答                                        -->
+<!--                                                                         -->
+<!-- ⚠️ 修改时注意 JSON 语法：字符串用英文双引号，末尾加英文逗号！         -->
+<!-- ====================================================================== -->
+<script>
+// ==================== 知识库数据 ====================
+var KNOWLEDGE = {
+  departments: [
+    {
+      id: "huodong",
+      name: "活动部",
+      intro: "活动部（ATD）是学生会中各种活动的策划、组织与实施者，致力于为同学们提供多元、自由的人际交往平台，以及丰富多彩的课余活动。在承办校级大型品牌活动的同时，不断筹办各类富有趣味的原创型活动。",
+      activities: ["年度新生舞会（Freshmen Ball）", "恋爱实习生", "新春活动（\"到我家来过年吧！\"）", "读书周活动（\"春天不是读书天\"）", "皇帝模拟器等原创活动"],
+      positions: [
+        {
+          name: "活动运营",
+          description: "负责活动策划、策划案撰写、时间线制作、场地预约、物资采购、现场调度与安排。（招新 7 人）",
+          workContent: "① 头脑风暴活动创意，撰写详细活动策划案\n② 制定活动时间线与分工安排\n③ 场地预约、物资采购、合作对接\n④ 活动现场的调度与执行\n⑤ 活动结束后进行复盘与总结",
+          workHours: "每周约 5-10 小时，大型活动（如新生舞会）筹备期更忙。活动季强度较高，平时相对灵活。",
+          tags: ["策划", "沟通", "执行", "合作", "创意"],
+          fit: ["有想法有创意", "认真负责", "善于沟通", "执行力强", "有领导能力"]
+        },
+        {
+          name: "财务运营",
+          description: "负责汇总制作物资表、预算案，物资采买与清点，收集整理票据，活动结束后进行报销。（招新 1 人）",
+          workContent: "① 汇总并制作活动物资表和预算案\n② 根据预算进行合理调整\n③ 物资采买与清点\n④ 收集整理各类票据\n⑤ 活动结束后进行报销流程",
+          workHours: "每周约 3-5 小时，活动采购和报销节点较集中。",
+          tags: ["财务", "Excel", "细心", "预算管理"],
+          fit: ["细心严谨", "认真负责", "善于使用Excel", "对数字敏感"]
+        },
+        {
+          name: "宣发运营",
+          description: "负责活动部相关推文及物料文案撰写，制定宣发计划并与宣发组对接。（招新 1 人）",
+          workContent: "① 撰写活动推文及宣传物料文案\n② 参与活动策划，了解活动亮点\n③ 制定活动宣发计划与节奏\n④ 与文宣部宣发组对接合作\n⑤ 把控宣发内容的质量与风格",
+          workHours: "每周约 3-5 小时，活动前期宣传集中。",
+          tags: ["文案", "写作", "宣传", "策划"],
+          fit: ["文字功底好", "有信息整合能力", "中英文表达能力强", "有创意"]
+        },
+        {
+          name: "秘书",
+          description: "负责整理并上传会议纪要、邮件撰写、学生会邮箱相关问题答复、邮箱管理和文件归档整理。（招新 1 人）",
+          workContent: "① 参加部门会议并整理会议纪要\n② 撰写各类中英文邮件\n③ 管理学生会邮箱，答复相关问题\n④ 文件归档与整理\n⑤ 协助部门内部行政事务",
+          workHours: "每周约 2-4 小时，碎片化时间为主。",
+          tags: ["文书", "邮件", "归档", "中英文"],
+          fit: ["细心负责", "中英文表达能力强", "有信息整合能力", "有条理"]
+        },
+        {
+          name: "美术设计",
+          description: "负责活动部相关推文、海报、物料（如舞会邀请函等）制作。（招新 2 人）",
+          workContent: "① 为活动设计宣传海报与推文封面\n② 制作舞会邀请函、门票等物料\n③ 设计活动周边与纪念品\n④ 配合宣发运营完成视觉呈现\n⑤ 维护活动部的视觉风格",
+          workHours: "每周约 4-6 小时，集中在活动前期。",
+          tags: ["设计", "排版", "配色", "可画", "秀米"],
+          fit: ["有良好审美", "具备排版与配色能力", "熟练掌握可画/秀米", "有创意"]
+        }
+      ]
+    },
+    {
+      id: "wenxuan",
+      name: "文宣部",
+      intro: "文宣部是学校对内与对外宣传的窗口，综合运用公众号推文、文创产出、视频运营等宣传手段，传递校园活动信息，关注学生校园生活，推广学生会理念。同时，文宣部也是学生会内部的邮件和财务枢纽，负责审核各部门的邮件和预算案、报销案，培训新任财务和秘书。",
+      activities: ["十周年宣传与文创设计", "色彩摄影（Color Hunting）", "信联南北·笺藏秋心（跨校书信）", "中秋晚会统筹与拍摄", "学生会公众号运营与管理"],
+      positions: [
+        {
+          name: "编导",
+          description: "负责与视频运营构思和规划视频内容及形式，撰写脚本，日常跟进视频制作，协助联系场地和拍摄人员。（招新 2 人）",
+          workContent: "① 构思和规划视频内容及表现形式\n② 撰写视频拍摄脚本\n③ 日常跟进视频制作进度\n④ 协助联系拍摄场地和人员\n⑤ 统筹视频项目的整体方向",
+          workHours: "每周约 4-6 小时，视频项目期间较集中。",
+          tags: ["编导", "脚本", "策划", "视频"],
+          fit: ["有视频脚本撰写能力", "熟悉视频拍摄流程", "对分镜取景有基本了解", "有创意"]
+        },
+        {
+          name: "摄影",
+          description: "负责拍摄B站和微信视频号的视频素材，摄制各类校园活动的宣传图和宣传片。（招新 3 人）",
+          workContent: "① 拍摄B站和微信视频号的视频素材\n② 摄制校园活动的宣传照片\n③ 拍摄活动宣传短片\n④ 管理摄影器材和素材存档\n⑤ 配合剪辑完成素材交接",
+          workHours: "每周约 4-8 小时，集中在活动现场和拍摄日。",
+          tags: ["摄影", "拍摄", "构图", "PS", "LR"],
+          fit: ["擅长照片和视频拍摄", "有自己的摄影器材", "熟悉PS或LR等软件", "对画面敏感"]
+        },
+        {
+          name: "剪辑",
+          description: "配合部门工作规划进行视频剪辑工作，包括微信视频号、B站视频、抖音短视频等后期处理与调色。（招新 3 人）",
+          workContent: "① 配合部门规划进行视频剪辑\n② 负责微信视频号内容的后期制作\n③ 制作B站视频内容\n④ 剪辑抖音短视频\n⑤ 视频后期处理与调色",
+          workHours: "每周约 4-8 小时，灵活安排。一部短视频约需 3-5 小时。",
+          tags: ["剪辑", "PR", "Final Cut", "后期", "调色"],
+          fit: ["熟悉PR/Final Cut等剪辑软件", "有B站/抖音投稿经验", "有耐心", "对节奏感有把控"]
+        },
+        {
+          name: "设计",
+          description: "设计活动海报与节日海报、文创产品、活动宣传册等，支持学生会公众号的美化设计需求。（招新 2-3 人）",
+          workContent: "① 设计各类活动海报与节日海报\n② 设计文创产品（T恤、卡贴、帆布袋等）\n③ 制作活动宣传册等物料\n④ 支持公众号的美化设计需求\n⑤ 有3D建模能力者可参与更多创意项目",
+          workHours: "每周约 4-6 小时，设计任务按需分配。",
+          tags: ["设计", "PS", "SAI", "板绘", "手绘", "3D"],
+          fit: ["有良好审美能力", "热爱板绘/手绘", "具备PS或SAI等技能", "能3D建模者优先"]
+        },
+        {
+          name: "美编",
+          description: "运营和管理学生会公众号，独立进行学生会推送的文案撰写、排版、审核工作。（招新若干）",
+          workContent: "① 运营和管理学生会官方公众号\n② 独立撰写推送文案\n③ 使用秀米等工具进行排版\n④ 审核推送内容质量\n⑤ 管理公众号发布排期",
+          workHours: "每周约 4-6 小时，推文发布日较集中。",
+          tags: ["公众号", "排版", "文案", "秀米", "可画"],
+          fit: ["熟练使用秀米/可画", "熟悉微信公众号运营", "文字功底好", "有审美"]
+        },
+        {
+          name: "秘书",
+          description: "负责审核各部门秘书起草的邮件，后期联络、培训各部门秘书，撰写本部门邮件。（招新 2 人）",
+          workContent: "① 审核各部门秘书起草的邮件\n② 后期联络和培训各部门秘书\n③ 撰写本部门中英文邮件\n④ 协助部门内部行政事务\n⑤ 维护邮件模板和标准",
+          workHours: "每周约 3-4 小时，碎片化时间为主。",
+          tags: ["邮件", "审核", "培训", "中英文", "沟通"],
+          fit: ["良好的沟通能力", "中英文邮件写作能力强", "细心负责", "有条理"]
+        },
+        {
+          name: "物资",
+          description: "负责日常预算案、报销案的撰写，活动物资的采买和处置，与商家沟通比价。（招新若干）",
+          workContent: "① 撰写日常预算案和报销案\n② 采买活动物资\n③ 处置和清点库存物资\n④ 与商家沟通比价\n⑤ 整理票据和财务文件",
+          workHours: "每周约 3-5 小时，采购和报销节点较集中。",
+          tags: ["采购", "预算", "报销", "比价"],
+          fit: ["细心负责", "熟悉物资采买流程", "擅长比价沟通", "有条理"]
+        }
+      ]
+    },
+    {
+      id: "xueshu",
+      name: "学术部",
+      intro: "学术部旨在搭建一座通往智识与趣味的桥梁，为同学们带来兼具学术内涵与趣味体验的活动。部门由多位背景与爱好多元的成员组成，氛围温馨包容。",
+      activities: ["Mentor Program 定向越野（学术+户外体验）", "学术讲座与分享会", "学科竞赛组织", "学术经验交流活动"],
+      positions: [
+        {
+          name: "活动运营",
+          description: "策划并组织兼具学术性与趣味性的校园活动，欢迎有兴趣的同学加入。（2026 年启动招新）",
+          workContent: "① 策划学术相关活动（讲座、分享会、竞赛等）\n② 组织Mentor Program等品牌活动\n③ 对接邀请嘉宾与讲师\n④ 协调场地、物资等后勤保障\n⑤ 与团队成员协作完成活动执行",
+          workHours: "每周约 4-6 小时，有活动时适当增加。部门氛围轻松，时间安排灵活。",
+          tags: ["策划", "组织", "学术", "沟通", "合作"],
+          fit: ["对学术活动有兴趣", "有创意", "善于团队合作", "喜欢策划活动"]
+        }
+      ]
+    },
+    {
+      id: "wailian",
+      name: "外联部",
+      intro: "外联部是学生会对外联络与交流的窗口，负责与校外组织、企业及兄弟院校的沟通合作，为学生会各项活动争取资源支持，同时拓展校际交流。2026年以「小镇冒险者征集令」为主题招新。",
+      activities: ["一日交换（短期校际交换体验）", "与企业及商家洽谈赞助合作", "与兄弟院校联络交流", "对外形象维护与接待"],
+      positions: [
+        {
+          name: "对外联络",
+          description: "负责与校外企业、组织及其他高校的沟通合作，为学生会活动争取赞助与资源支持。（2026 年启动招新）",
+          workContent: "① 寻找潜在赞助商并洽谈合作\n② 与兄弟院校学生会建立联系\n③ 策划并执行校际交流活动（如一日交换）\n④ 协助大型活动的嘉宾邀请与接待\n⑤ 维护学生会对外形象",
+          workHours: "每周约 4-6 小时，洽谈和活动期间可能需要外出。时间灵活，周末活动较多。",
+          tags: ["沟通", "谈判", "社交", "对外联络", "策划"],
+          fit: ["外向开朗", "善于沟通", "有亲和力", "喜欢社交", "有礼貌"]
+        }
+      ]
+    },
+    {
+      id: "shelian",
+      name: "社联部",
+      intro: "社联部（社团联合部）是社团与学生会之间的桥梁，也是管理学校社团工作、服务社团发展的主要部门。每年9月组织60+社团参与的「百团大战」，春季举办「社团文化节」，全方位展示社团文化。",
+      activities: ["百团大战（9月，60+社团联合招新）", "社团文化节（春季，创意市集+精品活动）", "大湾区高校社团交流", "社团日常管理与服务", "社团评优与年审"],
+      positions: [
+        {
+          name: "策划",
+          description: "主导社联部相关活动的主办和活动策划，拟写策划案。（招新 2 人）",
+          workContent: "① 主导「百团大战」「社团文化节」等活动策划\n② 拟写详细活动策划案\n③ 设计活动流程与环节\n④ 协调各部门配合执行\n⑤ 活动结束后进行复盘总结",
+          workHours: "每周约 5-8 小时，大型活动（百团大战/文化节）期间会增加到 10+ 小时。",
+          tags: ["策划", "创意", "统筹", "团队合作"],
+          fit: ["认真负责", "擅长团队合作", "想法新颖", "条理清晰", "有策划或社团经验者优先"]
+        },
+        {
+          name: "公关",
+          description: "负责社联与社团负责人的信息传达、沟通交流，协助社团活动正常进行，积极与外校社联或社团负责人联系。（招新 2 人）",
+          workContent: "① 与各社团负责人保持日常沟通\n② 传达社联通知和信息给各社团\n③ 协助社团活动顺利完成\n④ 联系外校社联或社团负责人\n⑤ 维护社联与社团的良好关系",
+          workHours: "每周约 4-6 小时，沟通工作贯穿日常。",
+          tags: ["沟通", "协调", "社交", "表达"],
+          fit: ["良好的交际能力", "表达能力强", "认真负责", "善于合作"]
+        },
+        {
+          name: "社团规划",
+          description: "审核日常活动的策划案、海报、场地预订表，协调、协助社团活动，审核学期春/秋季预算。（招新 6 人）",
+          workContent: "① 审核社团提交的活动策划案\n② 审核活动海报和宣传物料\n③ 审核场地预订等行政申请\n④ 协调和协助社团开展活动\n⑤ 审核学期春季和秋季预算",
+          workHours: "每周约 4-6 小时，学期初和百团大战期间较忙。",
+          tags: ["审核", "协调", "规划", "细致", "判断力"],
+          fit: ["细致耐心", "能对活动提出建议和判断", "有条理", "有责任心"]
+        },
+        {
+          name: "行政",
+          description: "接收社团每学期的财务预算，审核社团活动财务报销材料，与学校部门及社团财务负责人对接。（招新 3 人）",
+          workContent: "① 接收并审核社团财务预算\n② 审核社团活动财务报销材料\n③ 与学校相关部门对接财务事宜\n④ 与社团财务负责人日常沟通\n⑤ 管理社联财务档案",
+          workHours: "每周约 3-5 小时，预算和报销节点较集中。",
+          tags: ["财务", "审核", "沟通", "细致"],
+          fit: ["细致严谨", "沟通能力强", "信息管理能力强", "对财务工作感兴趣"]
+        },
+        {
+          name: "秘书",
+          description: "负责社联会议记录、邮件拟写，以及社联邮箱的管理（文件归档整理）。（招新 1-2 人）",
+          workContent: "① 记录社联各类会议纪要\n② 拟写中英文邮件\n③ 管理社联邮箱\n④ 文件归档与整理\n⑤ 协助社联内部行政事务",
+          workHours: "每周约 2-4 小时，碎片化时间为主。",
+          tags: ["文书", "邮件", "归档", "中英文"],
+          fit: ["细心严谨", "认真负责", "中英文表达能力强", "整理能力强"]
+        },
+        {
+          name: "文美编",
+          description: "收集社团活动信息，撰写活动预告及回顾文案，与文宣部合作负责社团主题公众号专栏的编辑和推送。（招新 1-2 人）",
+          workContent: "① 收集各社团活动信息\n② 撰写活动预告和回顾文案\n③ 与文宣部合作编辑公众号专栏\n④ 负责社团主题推送的排版\n⑤ 推广社团品牌和文化",
+          workHours: "每周约 3-5 小时，推送发布日较集中。",
+          tags: ["文案", "排版", "公众号", "PS", "审美"],
+          fit: ["文字表达能力强", "审美能力强", "掌握PS等编辑软件", "善于收集整理信息"]
+        }
+      ]
+    },
+    {
+      id: "quanyi",
+      name: "权益部",
+      intro: "权益部是学生会中负责维护学生权益的核心部门，通过权益信箱收集同学们的诉求，以邮件等形式与学校相关部门沟通，推动问题解决。同时协同学代会共同跟进长期议题，推动根源性改善。",
+      activities: ["权益信箱（收集学生诉求与反馈）", "春节大巴（春节返乡交通便利服务）", "与学校部门沟通推动问题解决", "权益座谈会", "协同学代会跟进长期议题"],
+      positions: [
+        {
+          name: "权益反馈",
+          description: "通过权益信箱收集同学们的意见建议，分类整理后与学校相关部门沟通反馈，推动问题解决并跟进处理结果。（2026 年启动招新）",
+          workContent: "① 管理权益信箱，收集同学们的意见和诉求\n② 分类整理各类问题并判断优先级\n③ 通过邮件等形式与学校相关部门沟通\n④ 跟进问题处理进度并反馈给同学\n⑤ 协同学代会推动长期议题的改善",
+          workHours: "每周约 4-6 小时，碎片化时间较多。处理紧急问题时需要及时响应。",
+          tags: ["沟通", "反馈", "问题解决", "邮件", "维权"],
+          fit: ["有同理心", "关心同学", "善于沟通", "有耐心", "有正义感"]
+        }
+      ]
+    }
+  ],
+
+  faqs: [
+    {
+      keywords: ["有哪些部门", "部门", "什么部门", "多少个部门", "都有什么部"],
+      question: "学生会有哪些部门？",
+      answer: "港中深学生会共有 6 个部门：\n\n🎉 活动部（ATD）— 活动策划与执行\n📢 文宣部 — 宣传、新媒体与文创\n📚 学术部 — 学术活动与趣味体验\n🤝 外联部 — 对外联络与赞助合作\n🎯 社联部 — 社团管理与服务\n🛡️ 权益部 — 学生权益维护\n\n想了解哪个部门，可以直接问我哦~"
+    },
+    {
+      keywords: ["报名", "报名时间", "怎么报名", "如何加入", "怎么加入", "加入学生会"],
+      question: "怎么报名加入学生会？",
+      answer: "报名流程一般是这样的：\n\n1️⃣ 关注学生会公众号，获取招新信息\n2️⃣ 填写线上报名表（通常在开学第一周开放）\n3️⃣ 参加面试（一般有 1-2 轮）\n4️⃣ 通过面试后进入试用期（约 1 个月）\n5️⃣ 试用期合格后正式成为干事\n\n具体时间安排请关注公众号招新推文哦~"
+    },
+    {
+      keywords: ["面试", "面试准备", "面试注意", "面试穿什么", "面试问什么"],
+      question: "面试需要注意什么？",
+      answer: "学生会面试小建议：\n\n👔 着装整洁得体即可，不需要正装\n📝 提前了解你报名的部门是做什么的\n💬 准备一段简短又有亮点的自我介绍\n🤔 常见问题：「你为什么想来这个部门？」「你能带来什么？」\n😊 保持微笑、自信表达、真诚最重要\n\n面试没有大家想象的那么可怕，放轻松就好！"
+    },
+    {
+      keywords: ["好处", "有什么用", "为什么加入", "值得吗", "加入的意义"],
+      question: "加入学生会有什么好处？",
+      answer: "加入学生会，你会收获：\n\n✨ 锻炼沟通、组织、策划等综合能力\n👥 结识一群志同道合的朋友\n📄 丰富简历和经历（评奖评优、求职都有用）\n🎯 深入了解学校运作，参与校园建设\n🏆 综测/第二课堂加分（各校政策不同）\n\n更重要的是——你会拥有一段充实又有意义的大学回忆！"
+    },
+    {
+      keywords: ["时间", "忙不忙", "影响学习", "学业", "会不会很累"],
+      question: "加入学生会会占用很多时间吗？",
+      answer: "这取决于你所在的部门和岗位：\n\n📅 大部分岗位每周投入 3-6 小时\n📅 活动部、社联部在活动季（如百团大战、新生舞会）会更忙\n📅 学术部、权益部的时间相对灵活\n\n💡 小建议：\n• 提前了解目标岗位的工作时间和强度\n• 学会时间管理，平衡学习与工作\n• 大多数干事都能兼顾学业，不用太担心\n\n如果你想知道具体某个岗位的时间安排，可以点击「📋 快速测评」或「💬 自由描述」，我会详细告诉你！"
+    },
+    {
+      keywords: ["试用期", "实习期", "转正", "考核"],
+      question: "试用期是什么？",
+      answer: "试用期（也叫考察期）是正式加入学生会前的考察阶段：\n\n⏱️ 时长：通常 1 个月左右\n📋 内容：参与部门日常工作，了解部门运作\n✅ 考核：部长根据出勤、态度、工作质量综合评定\n\n试用期是双向选择的过程——你可以感受这个部门是否适合自己，部门也会考察你是否合适。不用太紧张，认真对待就好！"
+    },
+    {
+      keywords: ["百团大战", "百团", "社团招新", "社团报名"],
+      question: "什么是百团大战？",
+      answer: "「百团大战」是每年 9 月由社联部组织统筹的大型社团联合招新活动！\n\n🎪 规模：60+ 来自不同领域的特色社团集体亮相\n🎭 形式：精彩的现场表演、创意互动体验、精美专属周边\n🎯 目的：全方位展示社团文化，帮助新生找到心仪的社团\n\n如果你对社团感兴趣，或者想加入社联部参与百团大战的策划——可以问我「社联部」了解更多！"
+    },
+    {
+      keywords: ["社团文化节", "文化节"],
+      question: "社团文化节是什么时候？",
+      answer: "社团文化节在每年春季举办，是社团活力的集中展现！\n\n🎨 内容包含：创意市集、各社团大型精品活动\n🎪 例如：精舞团年度舞展、凤凰漫研社「凤凰祭」等\n🤝 还有机会与大湾区多所高校的特色社团交流互动\n\n想了解如何参与或协助社团文化节，可以问我「社联部」！"
+    }
+  ],
+
+  general: [
+    {
+      keywords: ["自我介绍", "怎么说", "怎么介绍自己", "面试说什么"],
+      question: "面试时自我介绍怎么说？",
+      answer: "一个标准的自我介绍可以这样组织：\n\n1. 基本信息（姓名、班级、专业）\n2. 为什么想来这个部门（表达热情）\n3. 你有什么相关的优势或经验\n4. 加入后你能带来什么 / 你希望学到什么\n\n🎤 简单示例：\n「大家好，我是 XX 专业的 XXX。我一直对宣传工作很感兴趣，之前有过写公众号和做海报的经历。我觉得文宣部是一个能发挥我创意的地方，也希望用我的能力帮助更多同学了解学生会的活动。谢谢！」\n\n控制在 1 分钟左右，自然自信最重要！"
+    }
+  ]
+};
+
+// ==================== 推荐问卷 ====================
+var QUIZ = [
+  {
+    q: "如果用一句话描述你的性格，最接近的是？",
+    opts: [
+      { label: "😄 外向开朗，喜欢和人聊天打交道", val: ["外向", "善于沟通", "有亲和力", "喜欢社交"] },
+      { label: "🧘 细心沉稳，做事有条有理", val: ["细心", "有条理", "关注细节", "喜欢整理归纳"] },
+      { label: "💡 创意满满，脑子里总有新点子", val: ["有创意", "脑洞大", "喜欢设计", "喜欢策划"] },
+      { label: "🤗 温柔耐心，愿意倾听和帮助别人", val: ["有同理心", "有耐心", "关心同学", "有责任心"] }
+    ]
+  },
+  {
+    q: "你平时最喜欢做什么？（选最接近的一项）",
+    opts: [
+      { label: "✍️ 写写东西、记录生活", val: ["喜欢写作", "写作"] },
+      { label: "📷 拍照修图、做视频记录", val: ["喜欢拍照", "摄影", "视频剪辑", "对画面敏感"] },
+      { label: "🎪 组织聚会、约朋友一起玩", val: ["喜欢组织活动", "组织能力强", "执行力强", "喜欢策划"] },
+      { label: "📖 看书钻研自己感兴趣的领域", val: ["对学术有兴趣", "熟练Word/Excel"] }
+    ]
+  },
+  {
+    q: "你觉得自己最擅长的是什么？",
+    opts: [
+      { label: "🗣️ 沟通表达，和人打成一片", val: ["善于沟通", "有亲和力", "沟通"] },
+      { label: "🎨 设计/绘画/审美方面的事", val: ["有美术基础", "对色彩敏感", "设计", "审美"] },
+      { label: "📋 把事情安排得井井有条", val: ["有条理", "细心", "归纳", "管理"] },
+      { label: "⚡ 动手执行，快速解决问题", val: ["执行力强", "有应变能力", "反应快", "执行"] }
+    ]
+  },
+  {
+    q: "你更喜欢什么样的工作方式？",
+    opts: [
+      { label: "🧑‍💻 独立完成，安静专注地做好自己的事", val: ["独立工作", "细心", "关注细节", "写作"] },
+      { label: "👥 团队协作，大家一起头脑风暴", val: ["团队协作", "有创意", "喜欢策划", "脑洞大"] },
+      { label: "🤝 对外沟通，接触不同的人和资源", val: ["对外沟通", "外向", "社交", "不怕被拒绝"] },
+      { label: "🔧 幕后支持，确保一切顺利运转", val: ["幕后支持", "有责任心", "不怕累", "细心负责"] }
+    ]
+  },
+  {
+    q: "你愿意每周为此投入多少时间？",
+    opts: [
+      { label: "⏰ 3小时以内，不想太累", val: ["时间少"] },
+      { label: "⏰ 4-6小时，适中的投入", val: ["时间适中"] },
+      { label: "⏰ 多少都行，我愿意多投入！", val: ["时间多"] }
+    ]
+  }
+];
+
+// ==================== 应用状态 ====================
+var quizState = null;   // null | { step: 0, answers: [] }
+var quizAnswers = [];   // 保存当前答题的所有选项值
+
+// ==================== DOM 引用 ====================
+var chatArea = document.getElementById('chatArea');
+var msgInput = document.getElementById('msgInput');
+var sendBtn = document.getElementById('sendBtn');
+var quizEntry = document.getElementById('quizEntry');
+
+// ==================== 事件委托存储 ====================
+var _actionStore = {};
+var _actionId = 0;
+function storeAction(fn) {
+  var id = ++_actionId;
+  _actionStore[id] = fn;
+  return id;
+}
+
+// 委托点击事件：处理快速标签和问卷选项的点击
+chatArea.addEventListener('click', function(e) {
+  var el = e.target;
+  while (el && el !== chatArea) {
+    if (el.getAttribute('data-act')) {
+      var id = parseInt(el.getAttribute('data-act'));
+      if (_actionStore[id]) {
+        _actionStore[id]();
+        // 不删除 action，因为快捷标签可能被多次点击
+      }
+      return;
+    }
+    el = el.parentElement;
+  }
+});
+
+sendBtn.addEventListener('click', handleSend);
+quizEntry.addEventListener('click', startQuiz);
+msgInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
+});
+
+showWelcome();
+
+// ==================== 欢迎消息 ====================
+function showWelcome() {
+  addBotMsg(
+    '你好呀！👋\n\n我是学生会招新问答助手。你可以直接问我部门介绍、岗位职责、招新时间、报名方式或面试安排等问题。\n\n例如：\n• 学生会有哪些部门？\n• 活动部主要负责什么？\n• 什么时候开始招新？'
+  );
+}
+
+// ==================== 发送消息 ====================
+function handleSend() {
+  var text = msgInput.value.trim();
+  if (!text) return;
+
+  // 如果正在问答问卷，不接受文字
+  if (quizState) {
+    addBotMsg('请先在上面的选项中选择一个答案哦～');
+    return;
+  }
+
+  addUserMsg(text);
+  msgInput.value = '';
+
+  // 如果正在自由描述模式
+  if (freeRecommendActive) {
+    handleFreeRecommend(text);
+    return;
+  }
+
+  // 匹配回答
+  var reply = findAnswer(text);
+  if (reply) {
+    addBotMsg(reply);
+  } else {
+    addBotMsg(
+      '抱歉，我暂时还不太了解这个问题 😅\n\n你可以试试：\n• 输入部门名称（如「文宣部」）了解详情\n• 问我报名、面试相关的问题\n• 点击「📋 快速测评」或「💬 自由描述」让我帮你找到适合的岗位！'
+    );
+  }
+}
+
+// ==================== 智能匹配 ====================
+function findAnswer(text) {
+  // 1. 检查是否问某个部门
+  for (var i = 0; i < KNOWLEDGE.departments.length; i++) {
+    var dept = KNOWLEDGE.departments[i];
+    if (text.indexOf(dept.name) !== -1) {
+      return formatDept(dept);
+    }
+  }
+
+  // 2. 检查通用问答
+  for (var j = 0; j < KNOWLEDGE.general.length; j++) {
+    if (matchKW(text, KNOWLEDGE.general[j].keywords)) {
+      return KNOWLEDGE.general[j].answer;
+    }
+  }
+
+  // 3. 检查FAQ
+  for (var k = 0; k < KNOWLEDGE.faqs.length; k++) {
+    if (matchKW(text, KNOWLEDGE.faqs[k].keywords)) {
+      return KNOWLEDGE.faqs[k].answer;
+    }
+  }
+
+  // 4. 模糊匹配
+  var best = 0;
+  var bestAnswer = null;
+  var all = KNOWLEDGE.faqs.concat(KNOWLEDGE.general);
+  for (var m = 0; m < all.length; m++) {
+    for (var n = 0; n < all[m].keywords.length; n++) {
+      var s = textSim(text, all[m].keywords[n]);
+      if (s > best) { best = s; bestAnswer = all[m].answer; }
+    }
+  }
+
+  if (best > 0.35) return bestAnswer;
+  return null;
+}
+
+function matchKW(text, keywords) {
+  for (var i = 0; i < keywords.length; i++) {
+    if (text.indexOf(keywords[i]) !== -1) return true;
+  }
+  return false;
+}
+
+function textSim(a, b) {
+  var setA = {};
+  var setB = {};
+  for (var i = 0; i < a.length; i++) { setA[a[i]] = 1; }
+  for (var j = 0; j < b.length; j++) { setB[b[j]] = 1; }
+  var common = 0;
+  for (var k in setA) { if (setB[k]) common++; }
+  return common / Math.max(Object.keys(setA).length, Object.keys(setB).length);
+}
+
+// ==================== 部门信息 ====================
+function formatDept(dept) {
+  var msg = '【' + dept.name + '】\n\n' + dept.intro + '\n\n📌 主要工作：\n';
+  for (var i = 0; i < dept.activities.length; i++) {
+    msg += '  ' + (i + 1) + '. ' + dept.activities[i] + '\n';
+  }
+  msg += '\n👥 岗位设置：\n';
+  for (var j = 0; j < dept.positions.length; j++) {
+    msg += '  ' + (j + 1) + '. ' + dept.positions[j].name + ' — ' + dept.positions[j].description + '\n';
+  }
+  msg += '\n想了解具体岗位的工作内容和时间，可以点击「📋 快速测评」或「💬 自由描述」哦～';
+  return msg;
+}
+
+function askDept(name) {
+  addUserMsg('我想了解' + name);
+  var dept = null;
+  for (var i = 0; i < KNOWLEDGE.departments.length; i++) {
+    if (KNOWLEDGE.departments[i].name === name) { dept = KNOWLEDGE.departments[i]; break; }
+  }
+  if (dept) addBotMsg(formatDept(dept));
+}
+
+function listAllDepts() {
+  addUserMsg('查看所有部门');
+  var msg = '我们一共有 ' + KNOWLEDGE.departments.length + ' 个部门：\n\n';
+  for (var i = 0; i < KNOWLEDGE.departments.length; i++) {
+    var d = KNOWLEDGE.departments[i];
+    msg += (i + 1) + '. ' + d.name + ' — ' + d.intro.split('。')[0] + '。\n\n';
+  }
+  msg += '点击下方按钮或直接输入部门名称，就能看到详细信息～';
+  var chips = KNOWLEDGE.departments.map(function(d) {
+    return { label: d.name, action: function() { askDept(d.name); } };
+  });
+  addBotMsg(msg, renderChips(chips));
+}
+
+// ==================== 岗位推荐 ====================
+function startQuiz() {
+  quizState = { step: 0 };
+  quizAnswers = [];
+  quizEntry.disabled = true;
+  sendBtn.disabled = true;
+  msgInput.disabled = true;
+  msgInput.placeholder = '请在上方选择答案...';
+  showQuizQ();
+}
+
+function showQuizQ() {
+  var q = QUIZ[quizState.step];
+  var btns = q.opts.map(function(opt, idx) {
+    return {
+      label: opt.label,
+      action: function() { pickAnswer(idx); }
+    };
+  });
+  addBotMsg('🤔 ' + q.q, renderQuizBtns(btns));
+}
+
+function pickAnswer(idx) {
+  var q = QUIZ[quizState.step];
+  var chosen = q.opts[idx];
+
+  // 收集关键词
+  for (var i = 0; i < chosen.val.length; i++) {
+    quizAnswers.push(chosen.val[i]);
+  }
+
+  addUserMsg(chosen.label);
+  quizState.step++;
+
+  if (quizState.step < QUIZ.length) {
+    setTimeout(function() { showQuizQ(); }, 350);
+  } else {
+    setTimeout(function() { showResult(); }, 500);
+  }
+}
+
+// ==================== 评分引擎（两种推荐模式共用） ====================
+function scoreAllPositions(traits) {
+  var results = [];
+  for (var i = 0; i < KNOWLEDGE.departments.length; i++) {
+    var dept = KNOWLEDGE.departments[i];
+    for (var j = 0; j < dept.positions.length; j++) {
+      var pos = dept.positions[j];
+      var score = 0;
+      var matchedTraits = [];
+
+      var posTraits = pos.tags.concat(pos.fit);
+      for (var k = 0; k < posTraits.length; k++) {
+        for (var m = 0; m < traits.length; m++) {
+          if (posTraits[k].indexOf(traits[m]) !== -1 || traits[m].indexOf(posTraits[k]) !== -1) {
+            score++;
+            if (matchedTraits.indexOf(posTraits[k]) === -1) {
+              matchedTraits.push(posTraits[k]);
+            }
+          }
+        }
+      }
+
+      results.push({
+        deptName: dept.name,
+        deptId: dept.id,
+        position: pos,
+        score: score,
+        matched: matchedTraits
+      });
+    }
+  }
+  results.sort(function(a, b) { return b.score - a.score; });
+  return results;
+}
+
+// ==================== 推荐结果展示（岗位优先 + 聚合同名岗位） ====================
+function showRecommendResults(allPositions, introText) {
+  // 按岗位名称聚合（同名岗位合并部门）
+  var groups = [];
+  var seenNames = {};
+  for (var i = 0; i < allPositions.length; i++) {
+    var item = allPositions[i];
+    var name = item.position.name;
+    if (seenNames[name] === undefined) {
+      seenNames[name] = groups.length;
+      groups.push({
+        positionName: name,
+        position: item.position,
+        deptNames: [item.deptName],
+        topScore: item.score,
+        matched: item.matched
+      });
+    } else {
+      var g = groups[seenNames[name]];
+      g.deptNames.push(item.deptName);
+      if (item.score > g.topScore) {
+        g.topScore = item.score;
+        g.position = item.position;
+        g.matched = item.matched;
+      }
+    }
+  }
+  // 按最高分排序
+  groups.sort(function(a, b) { return b.topScore - a.topScore; });
+  // 取前2组
+  var top2 = groups.slice(0, 2);
+
+  var cardsHtml = '<div class="recommend-cards">';
+  for (var n = 0; n < top2.length; n++) {
+    var grp = top2[n];
+    var badgeHtml = n === 0 ? '<span class="rec-badge">🌟 最推荐</span>' : '';
+    var deptList = grp.deptNames.join('、');
+    var reasonText;
+    if (grp.matched.length > 0) {
+      reasonText = '💡 匹配理由：你的「' + grp.matched.slice(0, 3).join('」「') + '」等特质与这个岗位非常契合。';
+    } else {
+      reasonText = '💡 匹配理由：该岗位与你的描述有一定契合度，值得进一步了解。';
+    }
+
+    cardsHtml +=
+      '<div class="rec-card">' +
+        badgeHtml +
+        '<div class="rec-title">📌 ' + grp.positionName + '</div>' +
+        '<div class="rec-dept">🏛️ 可选部门：' + deptList + '</div>' +
+        '<div class="rec-section">' +
+          '<div class="rec-label">📝 具体工作内容</div>' +
+          '<div class="rec-text">' + escapeHtml(grp.position.workContent) + '</div>' +
+        '</div>' +
+        '<div class="rec-section">' +
+          '<div class="rec-label">⏱️ 预计工作时间（仅供参考）</div>' +
+          '<div class="rec-text">' + escapeHtml(grp.position.workHours) + '</div>' +
+        '</div>' +
+        '<div class="rec-reason">' + reasonText + '</div>' +
+      '</div>';
+  }
+  cardsHtml += '</div>';
+
+  addBotMsg(introText, cardsHtml);
+
+  // 追加快捷操作
+  var chips = [
+    { label: '🔄 重新测评', action: startQuiz, highlight: true },
+    { label: '💬 自由描述', action: startFreeRecommend, highlight: true },
+    { label: '🏛️ 查看所有部门', action: listAllDepts }
+  ];
+  addBotMsg('还想了解什么吗？', renderChips(chips));
+}
+
+// ==================== 快速测评模式（原有问答流程） ====================
+function showResult() {
+  quizState = null;
+  sendBtn.disabled = false;
+  quizEntry.disabled = false;
+  msgInput.disabled = false;
+  msgInput.placeholder = '输入你的问题...';
+
+  var allPositions = scoreAllPositions(quizAnswers);
+  showRecommendResults(allPositions, '根据你的回答，我为你推荐以下岗位：');
+}
+
+// ==================== 自由描述模式 ====================
+function extractTraits(text) {
+  var map = {
+    "外向": "外向", "开朗": "外向", "社牛": "外向", "e人": "外向",
+    "细心": "细心", "认真": "细心", "仔细": "细心", "严谨": "细心", "耐心": "有耐心",
+    "创意": "有创意", "脑洞": "有创意", "想法": "有创意",
+    "写作": "喜欢写作", "文案": "喜欢写作", "写文章": "喜欢写作", "文字": "喜欢写作",
+    "拍照": "喜欢拍照", "摄影": "喜欢拍照", "拍视频": "喜欢拍照", "相机": "喜欢拍照",
+    "视频": "视频剪辑", "剪辑": "视频剪辑",
+    "设计": "设计", "画画": "设计", "绘画": "设计", "手绘": "设计", "板绘": "设计", "PS": "设计", "海报": "设计",
+    "沟通": "善于沟通", "聊天": "善于沟通", "交流": "善于沟通", "表达": "善于沟通",
+    "组织": "喜欢组织活动", "策划": "喜欢策划", "举办": "喜欢组织活动",
+    "社交": "喜欢社交", "交朋友": "喜欢社交", "人打交道": "喜欢社交",
+    "学术": "对学术有兴趣", "学习": "对学术有兴趣",
+    "不忙": "时间少", "轻松": "时间少", "不多": "时间少", "不太累": "时间少", "不想太累": "时间少",
+    "充实": "时间多", "忙": "时间多", "投入": "时间多", "全力以赴": "时间多",
+    "社团": "有社团经验者优先", "活动经验": "有策划或社团经验者优先",
+    "公众号": "新媒体运营", "秀米": "秀米", "排版": "排版",
+    "Excel": "善于使用Excel", "office": "熟练Word/Excel", "办公软件": "熟练Word/Excel",
+    "英语": "中英文表达能力强", "英文": "中英文表达能力强",
+    "幕后": "幕后支持", "后台": "幕后支持", "支持": "幕后支持",
+    "领导": "有领导能力", "负责": "有责任心", "队长": "有领导能力",
+    "审美": "有审美", "好看": "有审美", "美": "有审美",
+    "体力": "不怕累", "精力": "不怕累",
+    "正义": "有正义感", "帮助": "关心同学", "帮忙": "关心同学"
+  };
+
+  var traits = [];
+  var added = {};
+
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    if (text.indexOf(keys[i]) !== -1) {
+      var val = map[keys[i]];
+      if (!added[val]) {
+        traits.push(val);
+        added[val] = true;
+      }
+    }
+  }
+
+  // 如果用户没提到时间偏好，默认加一个中性的
+  if (!added["时间少"] && !added["时间多"]) {
+    traits.push("时间适中");
+  }
+
+  return traits;
+}
+
+// 自由描述模式状态
+var freeRecommendActive = false;
+
+function startFreeRecommend() {
+  freeRecommendActive = true;
+  sendBtn.disabled = false;
+  msgInput.disabled = false;
+  msgInput.placeholder = '在这里描述你的性格和爱好...';
+  msgInput.focus();
+  addBotMsg(
+    '好的！请简单描述一下你自己吧～\n\n可以包括：性格特点、平时的兴趣爱好、擅长的事情、以及对工作强度的偏好等等。\n\n💡 比如：「我性格比较外向开朗，平时喜欢拍照和写东西，擅长和人沟通交流，希望能找一个不会太忙的岗位」\n\n在下方输入框中描述后发送即可~'
+  );
+}
+
+function handleFreeRecommend(text) {
+  freeRecommendActive = false;
+  sendBtn.disabled = false;
+  msgInput.placeholder = '输入你的问题...';
+
+  addBotMsg('🔍 正在分析你的描述，匹配合适的岗位...');
+
+  setTimeout(function() {
+    var traits = extractTraits(text);
+    if (traits.length === 0) {
+      addBotMsg('抱歉，从你的描述中没有提取到足够的关键信息 😅\n\n建议你再详细一点，比如告诉我你的性格（外向/细心/有创意等）、爱好（写作/拍照/设计等）、或者偏好（不想太忙/愿意多投入等）。\n\n你也可以试试「📋 快速测评」，只需回答几个选择题就行~');
+      return;
+    }
+    var allPositions = scoreAllPositions(traits);
+    showRecommendResults(allPositions, '根据你的描述，我为你推荐以下岗位：');
+  }, 800);
+}
+
+// ==================== 消息渲染 ====================
+function addBotMsg(text, extraHtml) {
+  var html = '<div class="message bot"><div class="avatar">🤖</div><div class="bubble">' + escapeHtml(text) + '</div></div>';
+  if (extraHtml) {
+    html = '<div class="message bot"><div class="avatar">🤖</div><div class="bubble">' + escapeHtml(text) + extraHtml + '</div></div>';
+  }
+  chatArea.insertAdjacentHTML('beforeend', html);
+  scrollBottom();
+}
+
+function addUserMsg(text) {
+  var html = '<div class="message user"><div class="avatar">👤</div><div class="bubble">' + escapeHtml(text) + '</div></div>';
+  chatArea.insertAdjacentHTML('beforeend', html);
+  scrollBottom();
+}
+
+function renderChips(chips) {
+  var html = '<div class="quick-row">';
+  for (var i = 0; i < chips.length; i++) {
+    var cls = chips[i].highlight ? 'quick-chip highlight' : 'quick-chip';
+    var aid = storeAction(chips[i].action);
+    html += '<span class="' + cls + '" data-act="' + aid + '">' + chips[i].label + '</span>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderQuizBtns(btns) {
+  var html = '<div class="quiz-list">';
+  for (var i = 0; i < btns.length; i++) {
+    var aid = storeAction(btns[i].action);
+    html += '<div class="quiz-btn" data-act="' + aid + '">' + btns[i].label + '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function scrollBottom() {
+  setTimeout(function() {
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }, 100);
+}
+</script>
+
+</body>
+</html>
+
+    
