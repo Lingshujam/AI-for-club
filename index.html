@@ -832,6 +832,49 @@ function callChatApi(question) {
 function searchLocalKnowledge(question) {
   var normalizedQuestion = normalizeSearchText(question);
   var terms = buildSearchTerms(question);
+  // 常见问题优先匹配，避免模糊搜索选错
+  var directRules = [
+    {
+      pattern: /什么时候.*招新|啥时候.*招新|招新.*时间|报名.*时间|几号.*截止|截止.*日期/,
+      title: '报名时间'
+    },
+    {
+      pattern: /怎么.*报名|咋.*报名|如何.*报名|报名.*方式|怎样.*申请/,
+      title: '报名方式'
+    },
+    {
+      pattern: /哪些部门|什么部门|几个部门|组织架构/,
+      title: '组织架构'
+    },
+    {
+      pattern: /报名.*流程|招新.*流程|需要.*步骤/,
+      title: '招新流程'
+    },
+    {
+      pattern: /报名.*条件|谁能报名|招新对象|什么人.*报名/,
+      title: '招新对象'
+    },
+    {
+      pattern: /面试.*流程|怎么.*面试/,
+      title: '面试流程'
+    }
+  ];
+
+  for (var ruleIndex = 0; ruleIndex < directRules.length; ruleIndex++) {
+    if (directRules[ruleIndex].pattern.test(question)) {
+      for (var sectionIndex = 0; sectionIndex < localKnowledgeSections.length; sectionIndex++) {
+        if (
+          localKnowledgeSections[sectionIndex].title.indexOf(
+            directRules[ruleIndex].title
+          ) !== -1
+        ) {
+          return formatKnowledgeAnswer(
+            localKnowledgeSections[sectionIndex]
+          );
+        }
+      }
+    }
+  }
   var bestSection = null;
   var bestScore = 0;
 
