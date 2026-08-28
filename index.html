@@ -978,24 +978,7 @@ function pickAnswer(index, expectedStep) {
   }
 }
 
-function pickAnswer(idx) {
-  var q = QUIZ[quizState.step];
-  var chosen = q.opts[idx];
 
-  // 收集关键词
-  for (var i = 0; i < chosen.val.length; i++) {
-    quizAnswers.push(chosen.val[i]);
-  }
-
-  addUserMsg(chosen.label);
-  quizState.step++;
-
-  if (quizState.step < QUIZ.length) {
-    setTimeout(function() { showQuizQ(); }, 350);
-  } else {
-    setTimeout(function() { showResult(); }, 500);
-  }
-}
 
 // ==================== 评分引擎（两种推荐模式共用） ====================
 function scoreAllPositions(traits) {
