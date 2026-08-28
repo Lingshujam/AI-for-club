@@ -682,6 +682,89 @@ QUIZ = MATCH_QUIZ;
 var localKnowledgeSections = [];
 var localKnowledgeReady = false;
 
+// ==================== 对话上下文 ====================
+var conversationContext = {
+  department: '',
+  position: ''
+};
+
+var contextDepartments = [
+  '活动部', '文宣部', '权益部',
+  '学术部', '社联部', '外联部'
+];
+
+var contextPositions = [
+  '公众号运营', '活动运营', '财务运营', '宣发运营',
+  '美术设计', '社团规划', '对外联络', '内外联',
+  '文美编', '编导', '摄影', '剪辑', '设计',
+  '运营', '文编', '美编', '秘书', '财务',
+  '策划', '公关', '行政'
+];
+
+function detectContextItem(text, items) {
+  var sortedItems = items.slice().sort(function(a, b) {
+    return b.length - a.length;
+  });
+
+  for (var i = 0; i < sortedItems.length; i++) {
+    if (text.indexOf(sortedItems[i]) !== -1) {
+      return sortedItems[i];
+    }
+  }
+
+  return '';
+}
+
+function resolveQuestionContext(question) {
+  var department = detectContextItem(
+    question,
+    contextDepartments
+  );
+
+  var position = detectContextItem(
+    question,
+    contextPositions
+  );
+
+  if (department) {
+    conversationContext.department = department;
+  }
+
+  if (position) {
+    conversationContext.position = position;
+  }
+
+  var resolvedQuestion = question;
+
+  var refersToPreviousPosition =
+    /这个岗位|该岗位|这个职位|它|这类岗位/.test(question);
+
+  var asksOtherDepartments =
+    /其他部门|别的部门|其余部门|类似岗位|同类岗位/.test(question);
+
+  if (
+    (refersToPreviousPosition || asksOtherDepartments) &&
+    !position &&
+    conversationContext.position
+  ) {
+    resolvedQuestion +=
+      ' ' + conversationContext.position;
+  }
+
+  // 如果没有说“其他部门”，则保留上一轮具体部门
+  if (
+    refersToPreviousPosition &&
+    !asksOtherDepartments &&
+    !department &&
+    conversationContext.department
+  ) {
+    resolvedQuestion +=
+      ' ' + conversationContext.department;
+  }
+
+  return resolvedQuestion;
+}
+
 function loadLocalKnowledge() {
   fetch('./knowledge.md')
     .then(function(response) {
@@ -816,7 +899,8 @@ function callChatApi(question) {
     return;
   }
 
-  var result = searchLocalKnowledge(question);
+var resolvedQuestion = resolveQuestionContext(question);
+var result = searchLocalKnowledge(resolvedQuestion);
 
   if (result) {
     addBotMsg(result);
@@ -828,6 +912,56 @@ function callChatApi(question) {
   }
 }
 
+function findRelatedPositionAnswer(question) {
+  var asksRelatedPosition =
+    /其他部门|别的部门|其余部门|类似岗位|同类岗位|叫什么/.test(
+      question
+    );
+
+  if (!asksRelatedPosition) {
+    return null;
+  }
+
+  var position = detectContextItem(
+    question,
+    contextPositions
+  );
+
+  if (!position) {
+    position = conversationContext.position;
+  }
+
+  if (!position) {
+    return null;
+  }
+
+  for (var i = 0; i < localKnowledgeSections.length; i++) {
+    var section = localKnowledgeSections[i];
+
+    if (section.title.indexOf('岗位检索别名') === -1) {
+      continue;
+    }
+
+    var lines = section.content.split('\n');
+
+    for (var j = 0; j < lines.length; j++) {
+      var line = lines[j].trim();
+
+      if (
+        line.indexOf(position) !== -1 &&
+        /^[-•]/.test(line)
+      ) {
+        return line
+          .replace(/^[-•]\s*/, '')
+          .replace(/\*\*/g, '')
+          .trim();
+      }
+    }
+  }
+
+  return null;
+}
+      
 // ==================== 部门具体岗位问答 ====================
 function findPositionAnswer(question) {
   var departments = [
@@ -955,7 +1089,14 @@ function findPositionAnswer(question) {
 function searchLocalKnowledge(question) {
   var normalizedQuestion = normalizeSearchText(question);
   var terms = buildSearchTerms(question);
+
+  var relatedPositionAnswer =
+  findRelatedPositionAnswer(question);
       
+  if (relatedPositionAnswer) {
+  return relatedPositionAnswer;
+  }
+ 
   var positionAnswer = findPositionAnswer(question);
 
   if (positionAnswer) {
