@@ -836,11 +836,11 @@ function findPositionAnswer(question) {
   ];
 
   var positions = [
-    '活动运营', '财务运营', '宣发运营', '美术设计',
-    '编导', '摄影', '剪辑', '设计', '公众号运营',
-    '运营', '文编', '美编', '秘书', '财务',
-    '策划', '公关', '社团规划', '行政', '文美编',
-    '内外联'
+    '公众号运营', '活动运营', '财务运营', '宣发运营',
+    '美术设计', '社团规划', '内外联', '文美编',
+    '编导', '摄影', '剪辑', '设计',
+    '运营', '文编', '美编', '秘书',
+    '财务', '策划', '公关', '行政'
   ];
 
   var departmentName = '';
@@ -853,6 +853,104 @@ function findPositionAnswer(question) {
     }
   }
 
+  // 长岗位名称优先
+  positions.sort(function(a, b) {
+    return b.length - a.length;
+  });
+
+  for (var j = 0; j < positions.length; j++) {
+    if (question.indexOf(positions[j]) !== -1) {
+      positionName = positions[j];
+      break;
+    }
+  }
+
+  if (!positionName) {
+    return null;
+  }
+
+  var answers = [];
+
+  for (var k = 0; k < localKnowledgeSections.length; k++) {
+    var section = localKnowledgeSections[k];
+
+    if (departments.indexOf(section.title) === -1) {
+      continue;
+    }
+
+    // 用户指定了部门时，只读取该部门
+    if (departmentName && section.title !== departmentName) {
+      continue;
+    }
+
+    var lines = section.content.split('\n');
+    var currentPart = '';
+    var departmentResults = [];
+
+    for (var m = 0; m < lines.length; m++) {
+      var line = lines[m].trim();
+
+      if (/^招新岗位[：:]/.test(line)) {
+        currentPart = '招募人数';
+        continue;
+      }
+
+      if (/^工作内容[：:]/.test(line)) {
+        currentPart = '工作内容';
+        continue;
+      }
+
+      if (/^希望你具备[：:]/.test(line)) {
+        currentPart = '能力要求';
+        continue;
+      }
+
+      var bulletMatch = line.match(/^[-•]\s*([^：:]+)[：:]\s*(.*)$/);
+
+      if (bulletMatch) {
+        var linePosition = bulletMatch[1].trim();
+        var lineContent = bulletMatch[2].trim();
+
+        var isSamePosition =
+          linePosition === positionName ||
+          linePosition.indexOf(positionName + '（') === 0;
+
+        if (isSamePosition) {
+          departmentResults.push(
+            currentPart + '：' + lineContent
+          );
+        }
+      }
+    }
+
+    if (departmentResults.length > 0) {
+      if (departmentName) {
+        // 已指定部门，只显示岗位资料
+        answers.push(departmentResults.join('\n\n'));
+      } else {
+        // 未指定部门，展示所有同名岗位，避免随便选一个
+        answers.push(
+          section.title + positionName + '：\n' +
+          departmentResults.join('\n')
+        );
+      }
+    }
+  }
+
+  if (answers.length === 0) {
+    return null;
+  }
+
+  if (!departmentName && answers.length > 1) {
+    return (
+      '不同部门的“' + positionName +
+      '”要求有所不同：\n\n' +
+      answers.join('\n\n')
+    );
+  }
+
+  return answers.join('\n\n');
+}
   if (!departmentName) {
     return null;
   }
@@ -1177,6 +1275,7 @@ function formatKnowledgeAnswer(section) {
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/^.*知识库暂未提供准确信息.*$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
