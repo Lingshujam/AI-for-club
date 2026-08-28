@@ -828,9 +828,136 @@ function callChatApi(question) {
   }
 }
 
+// ==================== 部门具体岗位问答 ====================
+function findPositionAnswer(question) {
+  var departments = [
+    '活动部', '文宣部', '权益部',
+    '学术部', '社联部', '外联部'
+  ];
+
+  var positions = [
+    '活动运营', '财务运营', '宣发运营', '美术设计',
+    '编导', '摄影', '剪辑', '设计', '公众号运营',
+    '运营', '文编', '美编', '秘书', '财务',
+    '策划', '公关', '社团规划', '行政', '文美编',
+    '内外联'
+  ];
+
+  var departmentName = '';
+  var positionName = '';
+
+  for (var i = 0; i < departments.length; i++) {
+    if (question.indexOf(departments[i]) !== -1) {
+      departmentName = departments[i];
+      break;
+    }
+  }
+
+  if (!departmentName) {
+    return null;
+  }
+
+  // 长名称优先，避免“财务运营”只匹配成“运营”
+  positions.sort(function(a, b) {
+    return b.length - a.length;
+  });
+
+  for (var j = 0; j < positions.length; j++) {
+    if (question.indexOf(positions[j]) !== -1) {
+      positionName = positions[j];
+      break;
+    }
+  }
+
+  // 只问部门、不问岗位时，交给普通部门检索
+  if (!positionName) {
+    return null;
+  }
+
+  var departmentSection = null;
+
+  for (var k = 0; k < localKnowledgeSections.length; k++) {
+    if (
+      localKnowledgeSections[k].title === departmentName ||
+      localKnowledgeSections[k].title.indexOf(departmentName) !== -1
+    ) {
+      departmentSection = localKnowledgeSections[k];
+      break;
+    }
+  }
+
+  if (!departmentSection) {
+    return null;
+  }
+
+  var lines = departmentSection.content.split('\n');
+  var currentPart = '';
+  var results = [];
+
+  for (var m = 0; m < lines.length; m++) {
+    var line = lines[m].trim();
+
+    if (/^招新岗位[：:]/.test(line)) {
+      currentPart = '招募人数';
+      continue;
+    }
+
+    if (/^工作内容[：:]/.test(line)) {
+      currentPart = '工作内容';
+      continue;
+    }
+
+    if (/^希望你具备[：:]/.test(line)) {
+      currentPart = '能力要求';
+      continue;
+    }
+
+    if (/^时间投入[：:]/.test(line)) {
+      currentPart = '时间投入';
+    }
+
+    if (
+      line.indexOf(positionName) !== -1 &&
+      (line.indexOf('-') === 0 || line.indexOf('•') === 0)
+    ) {
+      var cleanLine = line
+        .replace(/^[-•]\s*/, '')
+        .replace(positionName + '：', '')
+        .replace(positionName + ':', '')
+        .trim();
+
+      results.push(currentPart + '：' + cleanLine);
+    }
+
+    // 检查早鸟批是否开放该岗位
+    if (
+      /^早鸟批开放/.test(line) &&
+      line.indexOf(positionName) !== -1
+    ) {
+      results.push('招新批次：该岗位在早鸟批开放，正式批情况请以当届文件为准');
+    }
+  }
+
+  if (results.length === 0) {
+    return null;
+  }
+
+  return (
+    '【' + departmentName + ' · ' + positionName + '】\n\n' +
+    results.join('\n\n') +
+    '\n\n以上信息来自当前招新知识库，具体要求以当届招新文件为准。'
+  );
+}
+      
 function searchLocalKnowledge(question) {
   var normalizedQuestion = normalizeSearchText(question);
   var terms = buildSearchTerms(question);
+      
+  var positionAnswer = findPositionAnswer(question);
+
+  if (positionAnswer) {
+    return positionAnswer;
+  }
   // 常见问题优先匹配，避免模糊搜索选错
   var directRules = [
     {
