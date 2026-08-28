@@ -702,9 +702,10 @@ function loadLocalKnowledge() {
 }
 
 function splitLocalKnowledge(markdown) {
-  var blocks = markdown.split(/(?=^#{1,4}\s)/m);
   var sections = [];
+  var blocks = markdown.split(/(?=^#{1,4}\s)/m);
 
+  // 拆分普通标题板块
   for (var i = 0; i < blocks.length; i++) {
     var content = blocks[i].trim();
     if (!content) continue;
@@ -714,9 +715,25 @@ function splitLocalKnowledge(markdown) {
 
     sections.push({
       title: title,
-      content: content
+      content: content,
+      type: 'section'
     });
   }
+
+  // 单独拆分“常见问题”中的每一组问答
+  var faqPattern = /问[：:]\s*(.+?)\n+\s*答[：:]\s*([\s\S]*?)(?=\n+\s*问[：:]|$)/g;
+  var match;
+
+  while ((match = faqPattern.exec(markdown)) !== null) {
+    sections.push({
+      title: match[1].trim(),
+      content: match[2].trim(),
+      type: 'faq'
+    });
+  }
+
+  return sections;
+}
 
   return sections;
 }
@@ -857,19 +874,101 @@ function searchLocalKnowledge(question) {
 function buildSearchTerms(question) {
   var text = normalizeSearchText(question);
   var terms = [];
-  var stopWords = [
-    '什么', '怎么', '可以', '一下', '请问',
-    '你们', '我们', '这个', '那个', '学生会'
+
+  var synonymGroups = [
+    {
+      pattern: /什么时候|啥时候|何时|几号|日期|截止|时间/,
+      words: ['报名时间', '招新时间', '截止时间', '截止', '日期']
+    },
+    {
+      pattern: /怎么报名|咋报名|如何报名|怎样申请|怎么参加|报名方式|报名入口/,
+      words: ['报名方式', '报名流程', '报名', '申请', '提交']
+    },
+    {
+      pattern: /有哪些部门|什么部门|组织架构|几个部门/,
+      words: ['组织架构', '六个部门', '部门']
+    },
+    {
+      pattern: /做什么|干什么|干啥|负责什么|工作内容|岗位职责|主要工作/,
+      words: ['工作内容', '岗位职责', '主要工作', '负责']
+    },
+    {
+      pattern: /适合|匹配|推荐|擅长|想提升|想学习/,
+      words: ['适合人群', '岗位匹配', '兴趣与岗位', '能力与岗位']
+    },
+    {
+      pattern: /要求|需要什么能力|具备什么|会什么/,
+      words: ['希望你具备', '核心能力', '岗位要求']
+    },
+    {
+      pattern: /早鸟|提前批/,
+      words: ['早鸟批', '早鸟计划']
+    },
+    {
+      pattern: /正式批|正式报名/,
+      words: ['正式批', '正式报名']
+    },
+    {
+      pattern: /没通过|没过|失败|还能不能|还可以/,
+      words: ['没通过', '继续参加', '不影响后续']
+    },
+    {
+      pattern: /几个志愿|多少志愿|报几个岗位|几个岗位/,
+      words: ['两个岗位志愿', '岗位志愿']
+    },
+    {
+      pattern: /多个部门|几个部门|同时报|都报名/,
+      words: ['选择1个部门', '多个部门']
+    },
+    {
+      pattern: /材料|文档|文件|命名|邮件主题/,
+      words: ['报名材料', '文件命名', 'Word文档', '邮件主题']
+    },
+    {
+      pattern: /怎么提交|发到哪里|邮件|附件|网盘/,
+      words: ['提交方式', '邮件提交', '邮件附件', '百度网盘']
+    },
+    {
+      pattern: /无效|失败|注意事项|出错/,
+      words: ['申请无效', '逾期提交', '格式错误']
+    },
+    {
+      pattern: /面试|考核/,
+      words: ['面试流程', '面试准备', '面试']
+    },
+    {
+      pattern: /招多少人|几个人|人数|名额/,
+      words: ['招新岗位', '人']
+    },
+    {
+      pattern: /活动|项目|举办过/,
+      words: ['代表活动', '活动']
+    }
   ];
 
-  // 提取连续两个汉字，帮助识别岗位和部门名称
-  for (var i = 0; i < text.length - 1; i++) {
-    var term = text.slice(i, i + 2);
-
-    if (stopWords.indexOf(term) === -1) {
-      terms.push(term);
+  for (var i = 0; i < synonymGroups.length; i++) {
+    if (synonymGroups[i].pattern.test(question)) {
+      terms = terms.concat(synonymGroups[i].words);
     }
   }
+
+  // 保留问题中的部门名和岗位名
+  var importantWords = text
+    .replace(/学生会|请问|我想知道|能不能|可不可以|怎么样|是什么/g, '');
+
+  // 提取2～4个字的词组，支持部门及岗位名称
+  for (var length = 4; length >= 2; length--) {
+    for (var j = 0; j <= importantWords.length - length; j++) {
+      var term = importantWords.slice(j, j + length);
+
+      if (!/什么|怎么|一下|这个|那个|是否/.test(term)) {
+        terms.push(term);
+      }
+    }
+  }
+
+  return removeDuplicateTerms(terms);
+}
 
   // 补充常见问法
   if (/什么时候|时间|日期|截止|几号/.test(question)) {
