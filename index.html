@@ -735,8 +735,7 @@ function splitLocalKnowledge(markdown) {
   return sections;
 }
 
-  return sections;
-}
+ 
 var quizState = null;   // null | { step: 0, answers: [] }
 var quizAnswers = [];   // 保存当前答题的所有选项值
 
@@ -1013,29 +1012,7 @@ function buildSearchTerms(question) {
   return removeDuplicateTerms(terms);
 }
 
-  // 补充常见问法
-  if (/什么时候|时间|日期|截止|几号/.test(question)) {
-    terms.push('招新时间', '报名时间', '时间', '日期', '截止');
-  }
-
-  if (/怎么报名|如何报名|报名方式|在哪报名/.test(question)) {
-    terms.push('报名方式', '报名', '提交');
-  }
-
-  if (/部门|组织|有哪些部门/.test(question)) {
-    terms.push('部门', '组织架构');
-  }
-
-  if (/面试|考核/.test(question)) {
-    terms.push('面试', '考核', '招新流程');
-  }
-
-  if (/岗位|职责|负责什么|做什么|工作内容/.test(question)) {
-    terms.push('岗位', '职责', '工作内容');
-  }
-
-  return removeDuplicateTerms(terms);
-}
+  
 
 function normalizeSearchText(text) {
   return String(text || '')
