@@ -1162,8 +1162,16 @@ function removeDuplicateTerms(terms) {
 
 function formatKnowledgeAnswer(section) {
   var text = section.content
-    // 删除 Markdown 标题，包括“2.2 报名时间”等条目标题
+    // 删除“根据招新知识库”
+    .replace(/根据招新知识库[：:]?/g, '')
+
+    // 删除 Markdown 标题整行
     .replace(/^#{1,6}\s+.*$/gm, '')
+
+    // 删除“1.2 组织架构”这类数字章节标题
+    .replace(/^\s*\d+(?:\.\d+)+\s+[^\n]*$/gm, '')
+
+    // 清理其他 Markdown 格式
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/__(.*?)__/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
