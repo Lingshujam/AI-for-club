@@ -352,6 +352,8 @@ body {
 <!--                                                                         -->
 <!-- ⚠️ 修改时注意 JSON 语法：字符串用英文双引号，末尾加英文逗号！         -->
 <!-- ====================================================================== -->
+<script src="matching-data.js"></script>
+
 <script>
 // ==================== 知识库数据 ====================
 var KNOWLEDGE = {
@@ -673,6 +675,8 @@ var QUIZ = [
     ]
   }
 ];
+// 使用 matching-data.js 中的新问卷
+QUIZ = MATCH_QUIZ;
 
 // ==================== 应用状态 ====================
 var quizState = null;   // null | { step: 0, answers: [] }
@@ -887,23 +891,91 @@ function listAllDepts() {
 // ==================== 岗位推荐 ====================
 function startQuiz() {
   quizState = { step: 0 };
-  quizAnswers = [];
+
+  quizAnswers = {
+    traits: {
+      communication: 0,
+      creativity: 0,
+      writing: 0,
+      visual: 0,
+      execution: 0,
+      detail: 0,
+      service: 0
+    },
+    time: null,
+    growth: null
+  };
+
   quizEntry.disabled = true;
   sendBtn.disabled = true;
   msgInput.disabled = true;
-  msgInput.placeholder = '请在上方选择答案...';
+  msgInput.placeholder = "请在上方选择答案...";
+
   showQuizQ();
 }
 
 function showQuizQ() {
-  var q = QUIZ[quizState.step];
-  var btns = q.opts.map(function(opt, idx) {
+  var step = quizState.step;
+  var question = QUIZ[step];
+
+  var btns = question.options.map(function(option, index) {
     return {
-      label: opt.label,
-      action: function() { pickAnswer(idx); }
+      label: option.label,
+      action: function() {
+        pickAnswer(index, step);
+      }
     };
   });
-  addBotMsg('🤔 ' + q.q, renderQuizBtns(btns));
+
+  addBotMsg(
+    "🤔 第 " +
+      (step + 1) +
+      "/" +
+      QUIZ.length +
+      " 题\n\n" +
+      question.question,
+    renderQuizBtns(btns)
+  );
+}
+
+function pickAnswer(index, expectedStep) {
+  // 防止重复点击旧题目的按钮
+  if (!quizState || quizState.step !== expectedStep) {
+    return;
+  }
+
+  var question = QUIZ[quizState.step];
+  var chosen = question.options[index];
+
+  if (question.type === "trait") {
+    var scoreKeys = Object.keys(chosen.scores);
+
+    for (var i = 0; i < scoreKeys.length; i++) {
+      var key = scoreKeys[i];
+      quizAnswers.traits[key] += chosen.scores[key];
+    }
+  }
+
+  if (question.type === "time") {
+    quizAnswers.time = chosen.timeValue;
+  }
+
+  if (question.type === "growth") {
+    quizAnswers.growth = chosen.growth;
+  }
+
+  addUserMsg(chosen.label);
+  quizState.step++;
+
+  if (quizState.step < QUIZ.length) {
+    setTimeout(function() {
+      showQuizQ();
+    }, 350);
+  } else {
+    setTimeout(function() {
+      showResult();
+    }, 500);
+  }
 }
 
 function pickAnswer(idx) {
@@ -1033,16 +1105,441 @@ function showRecommendResults(allPositions, introText) {
   addBotMsg('还想了解什么吗？', renderChips(chips));
 }
 
+// ==================== 新版公平匹配算法 ====================
+
+// 计算每个维度在整份问卷中理论上能够获得的最高分
+function getTraitMaximums() {
+  var maximums = {
+    communication: 0,
+    creativity: 0,
+    writing: 0,
+    visual: 0,
+    execution: 0,
+    detail: 0,
+    service: 0
+  };
+
+  for (var i = 0; i < MATCH_QUIZ.length; i++) {
+    var question = MATCH_QUIZ[i];
+
+    if (question.type !== "trait") {
+      continue;
+    }
+
+    var questionMaximums = {
+      communication: 0,
+      creativity: 0,
+      writing: 0,
+      visual: 0,
+      execution: 0,
+      detail: 0,
+      service: 0
+    };
+
+    for (var j = 0; j < question.options.length; j++) {
+      var scores = question.options[j].scores;
+      var keys = Object.keys(scores);
+
+      for (var k = 0; k < keys.length; k++) {
+        var key = keys[k];
+
+        if (scores[key] > questionMaximums[key]) {
+          questionMaximums[key] = scores[key];
+        }
+      }
+    }
+
+    var dimensionKeys = Object.keys(maximums);
+
+    for (var m = 0; m < dimensionKeys.length; m++) {
+      var dimension = dimensionKeys[m];
+      maximums[dimension] += questionMaximums[dimension];
+    }
+  }
+
+  return maximums;
+}
+
+// 将用户各维度转换为0～3，避免某些维度因题目出现次数多而占优势
+function normalizeQuizTraits(rawTraits) {
+  var maximums = getTraitMaximums();
+  var normalized = {};
+  var keys = Object.keys(rawTraits);
+
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+
+    if (maximums[key] > 0) {
+      normalized[key] = rawTraits[key] / maximums[key] * 3;
+    } else {
+      normalized[key] = 0;
+    }
+  }
+
+  return normalized;
+}
+
+function getTimeCompatibility(availableTime, requiredTime) {
+  if (availableTime === null || availableTime === undefined) {
+    return 0.7;
+  }
+
+  var difference = availableTime - requiredTime;
+
+  if (difference >= 0) {
+    return 1;
+  }
+
+  if (difference === -1) {
+    return 0.7;
+  }
+
+  if (difference === -2) {
+    return 0.3;
+  }
+
+  return 0;
+}
+
+function getMatchLevel(score) {
+  if (score >= 82) {
+    return "匹配程度较高";
+  }
+
+  if (score >= 70) {
+    return "有较多契合点";
+  }
+
+  if (score >= 58) {
+    return "值得进一步了解";
+  }
+
+  return "可以作为探索方向";
+}
+
+function getProfileMatchReasons(profile, userTraits) {
+  var reasons = [];
+  var dimensions = [
+    "communication",
+    "creativity",
+    "writing",
+    "visual",
+    "execution",
+    "detail",
+    "service"
+  ];
+
+  for (var i = 0; i < dimensions.length; i++) {
+    var key = dimensions[i];
+    var requirement = profile.scores[key];
+    var userValue = userTraits[key] || 0;
+    var closeness = 1 - Math.abs(userValue - requirement) / 3;
+
+    if (requirement >= 2 && userValue >= 1) {
+      reasons.push({
+        key: key,
+        value: requirement * 2 + closeness
+      });
+    }
+  }
+
+  reasons.sort(function(a, b) {
+    return b.value - a.value;
+  });
+
+  return reasons.slice(0, 3).map(function(item) {
+    return MATCH_DIMENSION_LABELS[item.key];
+  });
+}
+
+function scoreFairProfiles(answerData) {
+  var userTraits = normalizeQuizTraits(answerData.traits);
+  var results = [];
+
+  for (var i = 0; i < POSITION_PROFILES.length; i++) {
+    var profile = POSITION_PROFILES[i];
+    var dimensions = [
+      "communication",
+      "creativity",
+      "writing",
+      "visual",
+      "execution",
+      "detail",
+      "service"
+    ];
+
+    var compatibilityTotal = 0;
+
+    for (var j = 0; j < dimensions.length; j++) {
+      var key = dimensions[j];
+      var userValue = userTraits[key] || 0;
+      var roleValue = profile.scores[key];
+      var closeness = 1 - Math.abs(userValue - roleValue) / 3;
+
+      compatibilityTotal += Math.max(0, closeness);
+    }
+
+    var capabilityScore =
+      compatibilityTotal / dimensions.length * 85;
+
+    var timeScore =
+      getTimeCompatibility(
+        answerData.time,
+        profile.scores.time
+      ) * 15;
+
+    results.push({
+      profile: profile,
+      matchScore: capabilityScore + timeScore,
+      reasons: getProfileMatchReasons(profile, userTraits)
+    });
+  }
+
+  results.sort(function(a, b) {
+    if (b.matchScore !== a.matchScore) {
+      return b.matchScore - a.matchScore;
+    }
+
+    // 同分时按岗位ID排序，避免受到原始数据排列顺序影响
+    return a.profile.id.localeCompare(b.profile.id, "zh-CN");
+  });
+
+  return results;
+}
+
+// 在分数接近时优先展示不同类型、不同部门的岗位
+function pickCurrentRecommendations(ranked) {
+  if (ranked.length <= 2) {
+    return ranked.slice();
+  }
+
+  var selected = [ranked[0]];
+  var normalSecond = ranked[1];
+  var alternative = null;
+
+  for (var i = 1; i < ranked.length; i++) {
+    var candidate = ranked[i];
+
+    if (
+      candidate.matchScore >= normalSecond.matchScore - 5 &&
+      candidate.profile.family !== selected[0].profile.family &&
+      candidate.profile.department !== selected[0].profile.department
+    ) {
+      alternative = candidate;
+      break;
+    }
+  }
+
+  selected.push(alternative || normalSecond);
+  return selected;
+}
+
+function pickGrowthRecommendation(ranked, selected, growthGoal) {
+  var selectedIds = {};
+
+  for (var i = 0; i < selected.length; i++) {
+    selectedIds[selected[i].profile.id] = true;
+  }
+
+  var candidates = [];
+
+  for (var j = 0; j < ranked.length; j++) {
+    var item = ranked[j];
+    var profile = item.profile;
+
+    if (selectedIds[profile.id]) {
+      continue;
+    }
+
+    var growthScore;
+
+    if (growthGoal === "explore" || !growthGoal) {
+      growthScore = item.matchScore;
+    } else {
+      var directionStrength = profile.scores[growthGoal] / 3;
+      var listedAsGrowth =
+        profile.growth.indexOf(growthGoal) !== -1 ? 1 : 0;
+
+      growthScore =
+        directionStrength * 60 +
+        listedAsGrowth * 20 +
+        item.matchScore * 0.2;
+    }
+
+    candidates.push({
+      profile: profile,
+      matchScore: item.matchScore,
+      growthScore: growthScore,
+      reasons: item.reasons
+    });
+  }
+
+  candidates.sort(function(a, b) {
+    if (b.growthScore !== a.growthScore) {
+      return b.growthScore - a.growthScore;
+    }
+
+    return a.profile.id.localeCompare(b.profile.id, "zh-CN");
+  });
+
+  // 尽量避免成长推荐与当前推荐完全属于同一类型
+  for (var k = 0; k < candidates.length; k++) {
+    var sameFamily = false;
+
+    for (var m = 0; m < selected.length; m++) {
+      if (
+        candidates[k].profile.family ===
+        selected[m].profile.family
+      ) {
+        sameFamily = true;
+      }
+    }
+
+    if (!sameFamily) {
+      return candidates[k];
+    }
+  }
+
+  return candidates.length ? candidates[0] : null;
+}
+
+function buildCurrentProfileCard(item, index) {
+  var profile = item.profile;
+  var reasonText = item.reasons.length
+    ? "你的回答体现出对" +
+      item.reasons.join("、") +
+      "等方面的偏好。"
+    : "这个岗位与你的部分工作偏好比较接近。";
+
+  var badge =
+    index === 0
+      ? '<span class="rec-badge">当前契合</span>'
+      : '<span class="rec-badge">相近方向</span>';
+
+  return (
+    '<div class="rec-card">' +
+      badge +
+      '<div class="rec-title">📌 ' +
+        escapeHtml(profile.position) +
+      "</div>" +
+      '<div class="rec-dept">🏛️ ' +
+        escapeHtml(profile.department) +
+      "</div>" +
+      '<div class="rec-section">' +
+        '<div class="rec-label">匹配判断</div>' +
+        '<div class="rec-text">' +
+          escapeHtml(getMatchLevel(item.matchScore)) +
+        "</div>" +
+      "</div>" +
+      '<div class="rec-reason">💡 ' +
+        escapeHtml(reasonText) +
+      "</div>" +
+      (profile.skillNotice
+        ? '<div class="rec-section">' +
+            '<div class="rec-label">进一步确认</div>' +
+            '<div class="rec-text">' +
+              escapeHtml(profile.skillNotice) +
+            "</div>" +
+          "</div>"
+        : "") +
+    "</div>"
+  );
+}
+
+function buildGrowthProfileCard(item, growthGoal) {
+  var profile = item.profile;
+  var growthLabel =
+    growthGoal === "explore" || !growthGoal
+      ? "多方向探索"
+      : MATCH_DIMENSION_LABELS[growthGoal];
+
+  return (
+    '<div class="rec-card">' +
+      '<span class="rec-badge">成长探索</span>' +
+      '<div class="rec-title">🌱 ' +
+        escapeHtml(profile.position) +
+      "</div>" +
+      '<div class="rec-dept">🏛️ ' +
+        escapeHtml(profile.department) +
+      "</div>" +
+      '<div class="rec-reason">这个岗位可能帮助你继续发展“' +
+        escapeHtml(growthLabel) +
+        "”方向，但不代表你目前已经具备全部岗位技能。</div>" +
+      (profile.skillNotice
+        ? '<div class="rec-section">' +
+            '<div class="rec-label">进一步确认</div>' +
+            '<div class="rec-text">' +
+              escapeHtml(profile.skillNotice) +
+            "</div>" +
+          "</div>"
+        : "") +
+    "</div>"
+  );
+}
+
+function showFairRecommendResults(answerData) {
+  var ranked = scoreFairProfiles(answerData);
+  var currentRecommendations =
+    pickCurrentRecommendations(ranked);
+
+  var growthRecommendation =
+    pickGrowthRecommendation(
+      ranked,
+      currentRecommendations,
+      answerData.growth
+    );
+
+  var html = '<div class="recommend-cards">';
+
+  for (
+    var i = 0;
+    i < currentRecommendations.length;
+    i++
+  ) {
+    html += buildCurrentProfileCard(
+      currentRecommendations[i],
+      i
+    );
+  }
+
+  if (growthRecommendation) {
+    html += buildGrowthProfileCard(
+      growthRecommendation,
+      answerData.growth
+    );
+  }
+
+  html += "</div>";
+
+  addBotMsg(
+    "测评完成！下面分别展示当前契合方向与成长探索方向。\n\n结果仅用于帮助了解岗位，不代表能力评价、录取概率或最终选择建议。",
+    html
+  );
+
+  var chips = [
+    {
+      label: "🔄 重新测评",
+      action: startQuiz,
+      highlight: true
+    },
+    {
+      label: "🏛️ 查看所有部门",
+      action: listAllDepts
+    }
+  ];
+
+  addBotMsg("你也可以继续查看部门介绍：", renderChips(chips));
+}
+
 // ==================== 快速测评模式（原有问答流程） ====================
 function showResult() {
   quizState = null;
   sendBtn.disabled = false;
   quizEntry.disabled = false;
   msgInput.disabled = false;
-  msgInput.placeholder = '输入你的问题...';
+  msgInput.placeholder = "输入你的问题...";
 
-  var allPositions = scoreAllPositions(quizAnswers);
-  showRecommendResults(allPositions, '根据你的回答，我为你推荐以下岗位：');
+  showFairRecommendResults(quizAnswers);
 }
 
 // ==================== 自由描述模式 ====================
