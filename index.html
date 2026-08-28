@@ -679,6 +679,47 @@ var QUIZ = [
 QUIZ = MATCH_QUIZ;
 
 // ==================== 应用状态 ====================
+var localKnowledgeSections = [];
+var localKnowledgeReady = false;
+
+function loadLocalKnowledge() {
+  fetch('./knowledge.md')
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error('knowledge.md 加载失败');
+      }
+      return response.text();
+    })
+    .then(function(markdown) {
+      localKnowledgeSections = splitLocalKnowledge(markdown);
+      localKnowledgeReady = true;
+      console.log('知识库加载成功，共', localKnowledgeSections.length, '个板块');
+    })
+    .catch(function(error) {
+      console.error('知识库加载失败：', error);
+      localKnowledgeReady = false;
+    });
+}
+
+function splitLocalKnowledge(markdown) {
+  var blocks = markdown.split(/(?=^#{1,4}\s)/m);
+  var sections = [];
+
+  for (var i = 0; i < blocks.length; i++) {
+    var content = blocks[i].trim();
+    if (!content) continue;
+
+    var firstLine = content.split('\n')[0];
+    var title = firstLine.replace(/^#{1,6}\s*/, '').trim();
+
+    sections.push({
+      title: title,
+      content: content
+    });
+  }
+
+  return sections;
+}
 var quizState = null;   // null | { step: 0, answers: [] }
 var quizAnswers = [];   // 保存当前答题的所有选项值
 
@@ -721,7 +762,7 @@ msgInput.addEventListener('keydown', function(e) {
     handleSend();
   }
 });
-
+loadLocalKnowledge();
 showWelcome();
 
 // ==================== 欢迎消息 ====================
@@ -752,47 +793,144 @@ function handleSend() {
   callChatApi(text);
 }
 
-function callChatApi(text) {
-  sendBtn.disabled = true;
-  msgInput.disabled = true;
+// ==================== 本地知识库问答 ====================
+function callChatApi(question) {
+  if (!localKnowledgeReady) {
+    addBotMsg('知识库正在加载，请稍等一下再提问～');
+    return;
+  }
 
-  fetch('/api/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      mode: 'qa',
-      messages: [
-        {
-          role: 'user',
-          content: text
-        }
-      ]
-    })
-  })
-    .then(function(response) {
-      if (!response.ok) {
-        throw new Error('接口请求失败');
+  var result = searchLocalKnowledge(question);
+
+  if (result) {
+    addBotMsg(result);
+  } else {
+    addBotMsg(
+      '抱歉，我暂时没有在知识库中找到明确答案。\n\n' +
+      '你可以换一种说法，或者询问部门介绍、岗位职责、招新时间、报名方式和面试安排。'
+    );
+  }
+}
+
+function searchLocalKnowledge(question) {
+  var normalizedQuestion = normalizeSearchText(question);
+  var terms = buildSearchTerms(question);
+  var bestSection = null;
+  var bestScore = 0;
+
+  for (var i = 0; i < localKnowledgeSections.length; i++) {
+    var section = localKnowledgeSections[i];
+    var title = normalizeSearchText(section.title);
+    var content = normalizeSearchText(section.content);
+    var score = 0;
+
+    for (var j = 0; j < terms.length; j++) {
+      var term = terms[j];
+      if (!term) continue;
+
+      if (title.indexOf(term) !== -1) {
+        score += 8;
       }
 
-      return response.json();
-    })
-    .then(function(data) {
-      if (data.ok && data.reply) {
-        addBotMsg(data.reply);
-      } else {
-        addBotMsg('抱歉，我暂时没有获取到回答，请稍后再试。');
+      if (content.indexOf(term) !== -1) {
+        score += 2;
       }
-    })
-    .catch(function() {
-      addBotMsg('网络连接出现问题，请稍后再试。');
-    })
-    .finally(function() {
-      sendBtn.disabled = false;
-      msgInput.disabled = false;
-      msgInput.focus();
-    });
+    }
+
+    if (title && normalizedQuestion.indexOf(title) !== -1) {
+      score += 12;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestSection = section;
+    }
+  }
+
+  if (!bestSection || bestScore < 2) {
+    return null;
+  }
+
+  return formatKnowledgeAnswer(bestSection);
+}
+
+function buildSearchTerms(question) {
+  var text = normalizeSearchText(question);
+  var terms = [];
+  var stopWords = [
+    '什么', '怎么', '可以', '一下', '请问',
+    '你们', '我们', '这个', '那个', '学生会'
+  ];
+
+  // 提取连续两个汉字，帮助识别岗位和部门名称
+  for (var i = 0; i < text.length - 1; i++) {
+    var term = text.slice(i, i + 2);
+
+    if (stopWords.indexOf(term) === -1) {
+      terms.push(term);
+    }
+  }
+
+  // 补充常见问法
+  if (/什么时候|时间|日期|截止|几号/.test(question)) {
+    terms.push('招新时间', '报名时间', '时间', '日期', '截止');
+  }
+
+  if (/怎么报名|如何报名|报名方式|在哪报名/.test(question)) {
+    terms.push('报名方式', '报名', '提交');
+  }
+
+  if (/部门|组织|有哪些部门/.test(question)) {
+    terms.push('部门', '组织架构');
+  }
+
+  if (/面试|考核/.test(question)) {
+    terms.push('面试', '考核', '招新流程');
+  }
+
+  if (/岗位|职责|负责什么|做什么|工作内容/.test(question)) {
+    terms.push('岗位', '职责', '工作内容');
+  }
+
+  return removeDuplicateTerms(terms);
+}
+
+function normalizeSearchText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[，。！？、；：“”‘’（）《》【】\-_*#`~]/g, '');
+}
+
+function removeDuplicateTerms(terms) {
+  var result = [];
+
+  for (var i = 0; i < terms.length; i++) {
+    if (terms[i] && result.indexOf(terms[i]) === -1) {
+      result.push(terms[i]);
+    }
+  }
+
+  return result;
+}
+
+function formatKnowledgeAnswer(section) {
+  var text = section.content
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  // 防止一次显示过多内容
+  if (text.length > 1800) {
+    text = text.slice(0, 1800) + '\n\n……更多内容请继续询问具体岗位。';
+  }
+
+  return '根据招新知识库：\n\n' + text;
 }
 
 // ==================== 智能匹配 ====================
