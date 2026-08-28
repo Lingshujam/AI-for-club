@@ -1162,7 +1162,8 @@ function removeDuplicateTerms(terms) {
 
 function formatKnowledgeAnswer(section) {
   var text = section.content
-    .replace(/^#{1,6}\s*/gm, '')
+    // 删除 Markdown 标题，包括“2.2 报名时间”等条目标题
+    .replace(/^#{1,6}\s+.*$/gm, '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/__(.*?)__/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
@@ -1171,12 +1172,13 @@ function formatKnowledgeAnswer(section) {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  // 防止一次显示过多内容
   if (text.length > 1800) {
-    text = text.slice(0, 1800) + '\n\n……更多内容请继续询问具体岗位。';
+    text =
+      text.slice(0, 1800) +
+      '\n\n更多内容可以继续询问具体部门或岗位。';
   }
 
-  return '根据招新知识库：\n\n' + text;
+  return text;
 }
 
 // ==================== 智能匹配 ====================
