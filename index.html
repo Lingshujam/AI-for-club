@@ -1535,25 +1535,58 @@ function formatDept(dept) {
 
 function askDept(name) {
   addUserMsg('我想了解' + name);
-  var dept = null;
-  for (var i = 0; i < KNOWLEDGE.departments.length; i++) {
-    if (KNOWLEDGE.departments[i].name === name) { dept = KNOWLEDGE.departments[i]; break; }
+
+  for (var i = 0; i < localKnowledgeSections.length; i++) {
+    var section = localKnowledgeSections[i];
+
+    if (section.title === name) {
+      conversationContext.department = name;
+      addBotMsg(formatKnowledgeAnswer(section));
+      return;
+    }
   }
-  if (dept) addBotMsg(formatDept(dept));
+
+  addBotMsg('暂时没有找到该部门的公开介绍。');
 }
 
 function listAllDepts() {
   addUserMsg('查看所有部门');
-  var msg = '我们一共有 ' + KNOWLEDGE.departments.length + ' 个部门：\n\n';
-  for (var i = 0; i < KNOWLEDGE.departments.length; i++) {
-    var d = KNOWLEDGE.departments[i];
-    msg += (i + 1) + '. ' + d.name + ' — ' + d.intro.split('。')[0] + '。\n\n';
+
+  var availableDepartments = [];
+
+  for (var i = 0; i < contextDepartments.length; i++) {
+    var departmentName = contextDepartments[i];
+
+    for (var j = 0; j < localKnowledgeSections.length; j++) {
+      if (
+        localKnowledgeSections[j].title === departmentName
+      ) {
+        availableDepartments.push(departmentName);
+        break;
+      }
+    }
   }
-  msg += '点击下方按钮或直接输入部门名称，就能看到详细信息～';
-  var chips = KNOWLEDGE.departments.map(function(d) {
-    return { label: d.name, action: function() { askDept(d.name); } };
+
+  if (availableDepartments.length === 0) {
+    addBotMsg('部门资料正在加载，请稍后再试。');
+    return;
+  }
+
+  var message =
+    '目前学生会共有以下六个部门：\n\n• ' +
+    availableDepartments.join('\n• ') +
+    '\n\n点击下方部门名称可以查看详细介绍。';
+
+  var chips = availableDepartments.map(function(name) {
+    return {
+      label: name,
+      action: function() {
+        askDept(name);
+      }
+    };
   });
-  addBotMsg(msg, renderChips(chips));
+
+  addBotMsg(message, renderChips(chips));
 }
 
 // ==================== 岗位推荐 ====================
