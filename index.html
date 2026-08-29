@@ -2157,7 +2157,7 @@ function buildGrowthProfileCard(item, growthGoal) {
   );
 }
 
-function showFairRecommendResults(answerData) {
+function showFairRecommendResults(answerData, introText) {
   var ranked = scoreFairProfiles(answerData);
   var currentRecommendations =
     pickCurrentRecommendations(ranked);
@@ -2192,21 +2192,26 @@ function showFairRecommendResults(answerData) {
   html += "</div>";
 
   addBotMsg(
-    "测评完成！下面分别展示当前契合方向与成长探索方向。\n\n结果仅用于帮助了解岗位，不代表能力评价、录取概率或最终选择建议。",
-    html
-  );
+  introText ||
+  "测评完成！下面分别展示当前契合方向与成长探索方向。\n\n结果仅用于帮助了解岗位，不代表能力评价、录取概率或最终选择建议。",
+  html
+);
 
   var chips = [
-    {
-      label: "🔄 重新测评",
-      action: startQuiz,
-      highlight: true
-    },
-    {
-      label: "🏛️ 查看所有部门",
-      action: listAllDepts
-    }
-  ];
+  {
+    label: "💬 补充自由描述",
+    action: startFreeRecommend,
+    highlight: true
+  },
+  {
+    label: "🔄 重新测评",
+    action: startQuiz
+  },
+  {
+    label: "🏛️ 查看所有部门",
+    action: listAllDepts
+  }
+];
 
   addBotMsg("你也可以继续查看部门介绍：", renderChips(chips));
 }
@@ -2221,6 +2226,134 @@ function showResult() {
 
   showFairRecommendResults(quizAnswers);
 }
+
+function extractFairDescription(text) {
+  var maximums = getTraitMaximums();
+
+  // 没提到的维度保持中性，不等于能力不足
+  var traits = {
+    communication: maximums.communication * 0.5,
+    creativity: maximums.creativity * 0.5,
+    writing: maximums.writing * 0.5,
+    visual: maximums.visual * 0.5,
+    execution: maximums.execution * 0.5,
+    detail: maximums.detail * 0.5,
+    service: maximums.service * 0.5
+  };
+
+  var dimensionRules = [
+    {
+      key: 'communication',
+      pattern: /沟通|交流|表达|社交|合作|协调|对接|和人打交道/
+    },
+    {
+      key: 'creativity',
+      pattern: /创意|策划|脑洞|想法|创新|构思/
+    },
+    {
+      key: 'writing',
+      pattern: /写作|文案|文字|推文|邮件|编辑|信息整理/
+    },
+    {
+      key: 'visual',
+      pattern: /设计|摄影|拍照|剪辑|视频|排版|绘画|审美|海报/
+    },
+    {
+      key: 'execution',
+      pattern: /执行|组织|统筹|推进|管理|落地|安排|现场/
+    },
+    {
+      key: 'detail',
+      pattern: /细心|认真|严谨|耐心|财务|数据|预算|资料|审核/
+    },
+    {
+      key: 'service',
+      pattern: /服务|帮助同学|权益|调查|解决问题|关注需求|校园生活/
+    }
+  ];
+
+  var matchedDimensions = [];
+
+  for (var i = 0; i < dimensionRules.length; i++) {
+    var rule = dimensionRules[i];
+
+    if (rule.pattern.test(text)) {
+      traits[rule.key] = maximums[rule.key] * 0.85;
+      matchedDimensions.push(rule.key);
+    }
+  }
+
+  // 处理明确表达的弱项，避免“不擅长沟通”被识别成擅长沟通
+  var negativeRules = [
+    {
+      key: 'communication',
+      pattern: /不擅长沟通|不太会表达|不喜欢社交|害怕和人交流/
+    },
+    {
+      key: 'writing',
+      pattern: /不擅长写作|不喜欢写东西|文字能力较弱/
+    },
+    {
+      key: 'visual',
+      pattern: /不会设计|不擅长设计|没有审美|不会摄影|不会剪辑/
+    },
+    {
+      key: 'execution',
+      pattern: /不擅长组织|不喜欢统筹|执行力较弱/
+    },
+    {
+      key: 'detail',
+      pattern: /不太细心|容易粗心|不擅长处理细节/
+    }
+  ];
+
+  for (var j = 0; j < negativeRules.length; j++) {
+    if (negativeRules[j].pattern.test(text)) {
+      traits[negativeRules[j].key] =
+        maximums[negativeRules[j].key] * 0.2;
+    }
+  }
+
+  var time = null;
+
+  if (/时间有限|不想太忙|希望轻量|以学业为主/.test(text)) {
+    time = 0;
+  } else if (/稳定投入|适中投入|固定投入/.test(text)) {
+    time = 1;
+  } else if (/可以忙一些|阶段性忙碌|愿意多投入/.test(text)) {
+    time = 2;
+  } else if (/时间灵活|活动期可以多投入|投入时间较多/.test(text)) {
+    time = 3;
+  }
+
+  var growth = 'explore';
+
+  if (/想提升.*沟通|希望锻炼.*表达|想学习.*社交/.test(text)) {
+    growth = 'communication';
+  } else if (/想提升.*创意|想学习.*策划/.test(text)) {
+    growth = 'creativity';
+  } else if (/想提升.*写作|想学习.*文案/.test(text)) {
+    growth = 'writing';
+  } else if (/想提升.*设计|想学习.*摄影|想学习.*剪辑/.test(text)) {
+    growth = 'visual';
+  } else if (/想提升.*执行|想学习.*组织|想提升.*统筹/.test(text)) {
+    growth = 'execution';
+  } else if (/想提升.*细心|想学习.*财务|想提升.*管理/.test(text)) {
+    growth = 'detail';
+  } else if (/想提升.*服务|想学习.*调查|想帮助同学/.test(text)) {
+    growth = 'service';
+  }
+
+  return {
+    answerData: {
+      traits: traits,
+      time: time,
+      growth: growth
+    },
+    matchedDimensions: matchedDimensions
+  };
+}
+
 
 // ==================== 自由描述模式 ====================
 function extractTraits(text) {
@@ -2288,19 +2421,27 @@ function startFreeRecommend() {
 function handleFreeRecommend(text) {
   freeRecommendActive = false;
   sendBtn.disabled = false;
-  msgInput.placeholder = '输入你的问题...';
+  msgInput.disabled = false;
+  msgInput.placeholder = '请输入关于学生会的问题...';
 
-  addBotMsg('🔍 正在分析你的描述，匹配合适的岗位...');
+  var parsed = extractFairDescription(text);
 
-  setTimeout(function() {
-    var traits = extractTraits(text);
-    if (traits.length === 0) {
-      addBotMsg('抱歉，从你的描述中没有提取到足够的关键信息 😅\n\n建议你再详细一点，比如告诉我你的性格（外向/细心/有创意等）、爱好（写作/拍照/设计等）、或者偏好（不想太忙/愿意多投入等）。\n\n你也可以试试「📋 快速测评」，只需回答几个选择题就行~');
-      return;
-    }
-    var allPositions = scoreAllPositions(traits);
-    showRecommendResults(allPositions, '根据你的描述，我为你推荐以下岗位：');
-  }, 800);
+  if (parsed.matchedDimensions.length < 2) {
+    addBotMsg(
+      '目前的信息还不足以进行相对稳定的推荐。' +
+      '\n\n可以再补充一些内容，例如：' +
+      '\n• 你平时喜欢做什么' +
+      '\n• 你更习惯沟通、创作、整理还是执行' +
+      '\n• 你希望提升哪方面能力' +
+      '\n• 你偏好的工作节奏'
+    );
+    return;
+  }
+
+  showFairRecommendResults(
+    parsed.answerData,
+    '根据你的补充描述，下面是重新计算后的参考方向。'
+  );
 }
 
 // ==================== 消息渲染 ====================
