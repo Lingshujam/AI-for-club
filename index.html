@@ -685,7 +685,8 @@ var localKnowledgeReady = false;
 // ==================== 对话上下文 ====================
 var conversationContext = {
   department: '',
-  position: ''
+  position: '',
+  topic: ''
 };
 
 var contextDepartments = [
@@ -735,6 +736,43 @@ function resolveQuestionContext(question) {
   }
 
   var resolvedQuestion = question;
+  var detectedTopic = '';
+
+  // 识别当前讨论的话题
+  if (
+    /早鸟批|正式批|报名|招新/.test(question) &&
+    /什么时候|截止|时间|日期|几号/.test(question)
+  ) {
+    detectedTopic = '报名时间';
+  } else if (/怎么报名|如何报名|报名方式|报名材料/.test(question)) {
+    detectedTopic = '报名方式';
+  } else if (
+    /一周|每周|时间投入|工作时长|忙不忙|工作量/.test(question)
+  ) {
+    detectedTopic = '时间投入';
+  } else if (/做什么|干什么|职责|工作内容/.test(question)) {
+    detectedTopic = '工作内容';
+  } else if (/技能|能力|要求|具备什么/.test(question)) {
+    detectedTopic = '能力要求';
+  }
+
+  if (detectedTopic) {
+    conversationContext.topic = detectedTopic;
+  }
+
+  // 识别“正式批呢”“那早鸟批呢”等简短追问
+  var isShortFollowUp =
+    question.length <= 10 &&
+    /呢|那|还有|正式批|早鸟批|这个|它/.test(question);
+
+  if (
+    isShortFollowUp &&
+    !detectedTopic &&
+    conversationContext.topic
+  ) {
+    resolvedQuestion +=
+      ' ' + conversationContext.topic;
+  }
 
   var refersToPreviousPosition =
     /这个岗位|该岗位|这个职位|它|这类岗位/.test(question);
@@ -751,7 +789,6 @@ function resolveQuestionContext(question) {
       ' ' + conversationContext.position;
   }
 
-  // 如果没有说“其他部门”，则保留上一轮具体部门
   if (
     refersToPreviousPosition &&
     !asksOtherDepartments &&
@@ -1085,12 +1122,61 @@ function findPositionAnswer(question) {
 
   return answers.join('\n\n');
 }
-      
+
+function findKnowledgeLine(sectionName, lineKeyword) {
+  for (var i = 0; i < localKnowledgeSections.length; i++) {
+    var section = localKnowledgeSections[i];
+
+    if (section.title.indexOf(sectionName) === -1) {
+      continue;
+    }
+
+    var lines = section.content.split('\n');
+
+    for (var j = 0; j < lines.length; j++) {
+      var line = lines[j].trim();
+
+      if (line.indexOf(lineKeyword) !== -1) {
+        return line
+          .replace(/^[-•]\s*/, '')
+          .replace(/\*\*/g, '')
+          .trim();
+      }
+    }
+  }
+
+  return null;
+}    
+
 function searchLocalKnowledge(question) {
   var normalizedQuestion = normalizeSearchText(question);
   var terms = buildSearchTerms(question);
 
+    // 精确回答不同招新批次的时间
+  if (
+    /早鸟批/.test(question) &&
+    /报名时间|什么时候|截止|日期|几号/.test(question)
+  ) {
+    var earlyBirdTime =
+      findKnowledgeLine('报名时间', '早鸟批');
 
+    if (earlyBirdTime) {
+      return earlyBirdTime;
+    }
+  }
+
+  if (
+    /正式批/.test(question) &&
+    /报名时间|什么时候|截止|日期|几号/.test(question)
+  ) {
+    var regularTime =
+      findKnowledgeLine('报名时间', '正式批');
+
+    if (regularTime) {
+      return regularTime;
+    }
+  }
+  
    // 区分岗位时间投入和报名日期
   var asksWorkload =
     /一周|每周|每星期|时间投入|投入时间|工作时间|工作时长|花多少时间|要花多久|忙不忙|工作量|工作强度/.test(
