@@ -1090,6 +1090,23 @@ function searchLocalKnowledge(question) {
   var normalizedQuestion = normalizeSearchText(question);
   var terms = buildSearchTerms(question);
 
+
+   // 区分岗位时间投入和报名日期
+  var asksWorkload =
+    /一周|每周|每星期|时间投入|投入时间|工作时间|工作时长|花多少时间|要花多久|忙不忙|工作量|工作强度/.test(
+      question
+    );
+
+  if (asksWorkload) {
+    return (
+      '目前无法给出学生会所有岗位统一的每周投入小时数，' +
+      '不同部门、岗位和活动阶段的工作量会有明显差异。' +
+      '\n\n现有公开资料只能确认：权益部日常性工作相对较多；' +
+      '外联部的出访通常安排在周末。' +
+      '\n\n其他岗位的例会、值班和每周投入时间，建议以当届部门招新说明或部长确认的信息为准。'
+    );
+  } 
+
   var relatedPositionAnswer =
   findRelatedPositionAnswer(question);
       
@@ -1190,8 +1207,25 @@ function buildSearchTerms(question) {
 
   var synonymGroups = [
     {
-      pattern: /什么时候|啥时候|何时|几号|日期|截止|时间/,
-      words: ['报名时间', '招新时间', '截止时间', '截止', '日期']
+     {
+  pattern: /招新.*时间|报名.*时间|什么时候.*招新|什么时候.*报名|啥时候.*招新|啥时候.*报名|报名.*日期|报名.*截止|几号.*截止/,
+  words: [
+    '报名时间',
+    '招新时间',
+    '截止时间',
+    '截止日期'
+  ]
+},
+{
+  pattern: /一周|每周|每星期|时间投入|投入时间|工作时间|工作时长|花多少时间|要花多久|忙不忙|工作量|工作强度/,
+  words: [
+    '时间投入',
+    '岗位时间',
+    '工作强度',
+    '例会',
+    '值班'
+  ]
+},
     },
     {
       pattern: /怎么报名|咋报名|如何报名|怎样申请|怎么参加|报名方式|报名入口/,
