@@ -912,6 +912,13 @@ function showWelcome() {
   );
 }
 
+function looksLikePersonalDescription(text) {
+  return /我喜欢|我擅长|我的性格|我比较|我平时|我会|我不擅长|我希望提升|我想锻炼|我想学习/.test(
+    text
+  );
+}
+
+
 // ==================== 发送消息 ====================
 function handleSend() {
   var text = msgInput.value.trim();
@@ -926,11 +933,28 @@ function handleSend() {
   msgInput.value = '';
 
   if (freeRecommendActive) {
-    handleFreeRecommend(text);
-    return;
-  }
+  handleFreeRecommend(text);
+  return;
+}
 
-  callChatApi(text);
+// 普通问答模式下，不把个人描述送入知识库模糊检索
+if (looksLikePersonalDescription(text)) {
+  addBotMsg(
+    '这看起来是一段个人特点描述。' +
+    '\n\n如果你希望根据兴趣和特点了解岗位，建议先完成岗位匹配度测试；' +
+    '完成后可以点击“补充自由描述”，系统会结合你的描述重新计算结果。',
+    renderChips([
+      {
+        label: '✨ 开始岗位匹配度测试',
+        action: startQuiz,
+        highlight: true
+      }
+    ])
+  );
+  return;
+}
+
+callChatApi(text);
 }
 
 // ==================== 本地知识库问答 ====================
@@ -2411,11 +2435,35 @@ function startFreeRecommend() {
   freeRecommendActive = true;
   sendBtn.disabled = false;
   msgInput.disabled = false;
-  msgInput.placeholder = '在这里描述你的性格和爱好...';
+  msgInput.placeholder =
+    '描述你的兴趣、特点、工作偏好和成长方向...';
   msgInput.focus();
+
   addBotMsg(
-    '好的！请简单描述一下你自己吧～\n\n可以包括：性格特点、平时的兴趣爱好、擅长的事情、以及对工作强度的偏好等等。\n\n💡 比如：「我性格比较外向开朗，平时喜欢拍照和写东西，擅长和人沟通交流，希望能找一个不会太忙的岗位」\n\n在下方输入框中描述后发送即可~'
+    '已进入“自由描述补充”模式。' +
+    '\n\n你接下来发送的一条消息只用于重新计算岗位匹配，不会作为知识库问题处理。' +
+    '\n\n可以描述：' +
+    '\n• 你平时喜欢做什么' +
+    '\n• 你更习惯沟通、创作、整理还是执行' +
+    '\n• 你希望提升什么能力' +
+    '\n• 你偏好的工作节奏',
+    renderChips([
+      {
+        label: '退出自由描述',
+        action: cancelFreeRecommend
+      }
+    ])
   );
+}
+
+function cancelFreeRecommend() {
+  freeRecommendActive = false;
+  msgInput.disabled = false;
+  sendBtn.disabled = false;
+  msgInput.value = '';
+  msgInput.placeholder = '请输入关于学生会的问题...';
+
+  addBotMsg('已退出自由描述模式，可以继续询问学生会相关问题。');
 }
 
 function handleFreeRecommend(text) {
