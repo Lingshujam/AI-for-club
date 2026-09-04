@@ -1038,11 +1038,8 @@ function useLocalKnowledgeFallback(question) {
   var result = searchLocalKnowledge(question);
 
   if (result) {
-    addBotMsg(
-      '智能问答暂时无法连接，以下内容来自本地知识库：\n\n' +
-      result
-    );
-  } else {
+  addBotMsg(result);
+} else {
     addBotMsg(
       '智能问答暂时无法连接，本地知识库中也没有找到明确答案。'
     );
