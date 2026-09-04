@@ -957,25 +957,98 @@ if (looksLikePersonalDescription(text)) {
 callChatApi(text);
 }
 
-// ==================== 本地知识库问答 ====================
+// 优先调用DeepSeek；调用失败时自动使用本地知识库
 function callChatApi(question) {
+  var resolvedQuestion = resolveQuestionContext(question);
+
+  sendBtn.disabled = true;
+  msgInput.disabled = true;
+
+  var controller = new AbortController();
+
+  // 15秒没有响应，就视为API暂时不可用
+  var timeout = setTimeout(function() {
+    controller.abort();
+  }, 15000);
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: 'user',
+          content: resolvedQuestion
+        }
+      ]
+    }),
+    signal: controller.signal
+  })
+    .then(function(response) {
+      return response.json().then(function(data) {
+        if (
+          !response.ok ||
+          !data ||
+          data.ok !== true ||
+          !data.reply
+        ) {
+          throw new Error(
+            data && data.error
+              ? data.error
+              : 'API没有返回有效答案'
+          );
+        }
+
+        return data;
+      });
+    })
+    .then(function(data) {
+      // API可用，显示DeepSeek的回答
+      addBotMsg(data.reply);
+    })
+    .catch(function(error) {
+      // API不可用，自动切换到本地knowledge.md
+      console.warn(
+        'DeepSeek API不可用，切换到本地知识库：',
+        error
+      );
+
+      useLocalKnowledgeFallback(resolvedQuestion);
+    })
+    .finally(function() {
+      clearTimeout(timeout);
+
+      sendBtn.disabled = false;
+      msgInput.disabled = false;
+      msgInput.focus();
+    });
+}
+
+// API不可用时的本地知识库备用回答
+function useLocalKnowledgeFallback(question) {
   if (!localKnowledgeReady) {
-    addBotMsg('知识库正在加载，请稍等一下再提问～');
+    addBotMsg(
+      '智能问答服务暂时无法连接，知识库也仍在加载，请稍后再试。'
+    );
     return;
   }
 
-var resolvedQuestion = resolveQuestionContext(question);
-var result = searchLocalKnowledge(resolvedQuestion);
+  var result = searchLocalKnowledge(question);
 
   if (result) {
-    addBotMsg(result);
+    addBotMsg(
+      '智能问答暂时无法连接，以下内容来自本地知识库：\n\n' +
+      result
+    );
   } else {
     addBotMsg(
-      '抱歉，我暂时没有在知识库中找到明确答案。\n\n' +
-      '你可以换一种说法，或者询问部门介绍、岗位职责、招新时间、报名方式和面试安排。'
+      '智能问答暂时无法连接，本地知识库中也没有找到明确答案。'
     );
   }
 }
+
 
 function findRelatedPositionAnswer(question) {
   var asksRelatedPosition =
