@@ -2536,32 +2536,166 @@ function cancelFreeRecommend() {
   addBotMsg('已退出自由描述模式，可以继续询问学生会相关问题。');
 }
 
-function handleFreeRecommend(text) {
-  freeRecommendActive = false;
-  sendBtn.disabled = false;
-  msgInput.disabled = false;
-  msgInput.placeholder = '请输入关于学生会的问题...';
+// 将AI返回的0～3分转换为现有匹配算法使用的分值
+function convertAIMatchToAnswerData(match) {
+  var maximums = getTraitMaximums();
 
-  var parsed = extractFairDescription(text);
+  var dimensions = [
+    'communication',
+    'creativity',
+    'writing',
+    'visual',
+    'execution',
+    'detail',
+    'service'
+  ];
 
-  if (parsed.matchedDimensions.length < 2) {
-    addBotMsg(
-      '目前的信息还不足以进行相对稳定的推荐。' +
-      '\n\n可以再补充一些内容，例如：' +
-      '\n• 你平时喜欢做什么' +
-      '\n• 你更习惯沟通、创作、整理还是执行' +
-      '\n• 你希望提升哪方面能力' +
-      '\n• 你偏好的工作节奏'
-    );
-    return;
+  var traits = {};
+
+  for (var i = 0; i < dimensions.length; i++) {
+    var key = dimensions[i];
+    var value = Number(match.traits[key]);
+
+    if (!Number.isFinite(value)) {
+      value = 1.5;
+    }
+
+    value = Math.max(0, Math.min(3, value));
+
+    traits[key] =
+      value / 3 * maximums[key];
   }
 
-  showFairRecommendResults(
-    parsed.answerData,
-    '根据你的补充描述，下面是重新计算后的参考方向。'
-  );
+  return {
+    traits: traits,
+    time:
+      match.time === null ||
+      match.time === undefined
+        ? null
+        : Math.max(
+            0,
+            Math.min(3, Number(match.time))
+          ),
+    growth: match.growth || 'explore'
+  };
 }
 
+// 自由描述优先交给DeepSeek理解
+// API不可用时使用原来的本地关键词识别
+function handleFreeRecommend(text) {
+  sendBtn.disabled = true;
+  msgInput.disabled = true;
+  msgInput.placeholder = '正在理解你的描述...';
+
+  var controller = new AbortController();
+
+  var timeout = setTimeout(function() {
+    controller.abort();
+  }, 15000);
+
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      mode: 'matching',
+      description: text
+    }),
+    signal: controller.signal
+  })
+    .then(function(response) {
+      return response.json().then(function(data) {
+        if (
+          !response.ok ||
+          !data ||
+          data.ok !== true ||
+          data.mode !== 'matching' ||
+          !data.match
+        ) {
+          throw new Error(
+            data && data.error
+              ? data.error
+              : '自由描述识别失败'
+          );
+        }
+
+        return data;
+      });
+    })
+    .then(function(data) {
+      var matchedDimensions =
+        Array.isArray(data.match.matchedDimensions)
+          ? data.match.matchedDimensions
+          : [];
+
+      if (matchedDimensions.length === 0) {
+        freeRecommendActive = true;
+
+        addBotMsg(
+          '我还需要多了解一点你的情况。' +
+          '\n\n可以补充你喜欢做什么、' +
+          '更习惯怎样合作，或者希望提升什么能力。'
+        );
+
+        return;
+      }
+
+      var answerData =
+        convertAIMatchToAnswerData(data.match);
+
+      freeRecommendActive = false;
+
+      showFairRecommendResults(
+        answerData,
+        '结合你的补充描述，为你整理了以下参考方向。'
+      );
+    })
+    .catch(function(error) {
+      console.warn(
+        'AI自由描述识别不可用，使用本地分析：',
+        error
+      );
+
+      var parsed = extractFairDescription(text);
+
+      if (parsed.matchedDimensions.length === 0) {
+        freeRecommendActive = true;
+
+        addBotMsg(
+          '我还需要多了解一点你的情况。' +
+          '\n\n可以补充你喜欢做什么、' +
+          '更习惯怎样合作，或者希望提升什么能力。'
+        );
+
+        return;
+      }
+
+      freeRecommendActive = false;
+
+      showFairRecommendResults(
+        parsed.answerData,
+        '结合你的补充描述，为你整理了以下参考方向。'
+      );
+    })
+    .finally(function() {
+      clearTimeout(timeout);
+
+      sendBtn.disabled = false;
+      msgInput.disabled = false;
+
+      if (freeRecommendActive) {
+        msgInput.placeholder =
+          '继续补充你的兴趣、特点或成长方向...';
+      } else {
+        msgInput.placeholder =
+          '请输入关于学生会的问题...';
+      }
+
+      msgInput.focus();
+    });
+}
+      
 // ==================== 消息渲染 ====================
 function addBotMsg(text, extraHtml) {
   var html = '<div class="message bot"><div class="avatar">🤖</div><div class="bubble">' + escapeHtml(text) + '</div></div>';
